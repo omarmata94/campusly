@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from services.reports import ReportService
+from services.time_utils import today_local
 from services.ui import APP_NAME, configure_page, logout_button, metric_card, page_hero, render_sidebar, styled_attendance_table
 
 
@@ -33,7 +34,7 @@ def main() -> None:
     metrics = ReportService.summary_totals()
     _metrics_to_columns(metrics)
 
-    end_date = date.today()
+    end_date = today_local()
     start_date = end_date - timedelta(days=6)
     daily_df = ReportService.daily_summary(start_date, end_date)
     department_df = ReportService.department_summary(start_date, end_date)

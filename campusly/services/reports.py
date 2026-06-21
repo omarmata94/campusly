@@ -10,6 +10,7 @@ from sqlalchemy import and_, case, func, select
 
 from database.db import get_session
 from database.models import Asistencia, Docente
+from services.time_utils import today_local
 
 
 @dataclass(slots=True)
@@ -102,7 +103,7 @@ class ReportService:
 
     @staticmethod
     def summary_totals(reference_date: Optional[date] = None) -> dict[str, int]:
-        reference_date = reference_date or date.today()
+        reference_date = reference_date or today_local()
         with get_session() as session:
             total_docentes = session.scalar(select(func.count(Docente.id)).where(Docente.activo.is_(True))) or 0
             presentes = session.scalar(

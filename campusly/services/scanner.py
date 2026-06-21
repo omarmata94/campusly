@@ -16,6 +16,7 @@ from sqlalchemy import select
 
 from database.db import get_session
 from database.models import Asistencia, Docente
+from services.time_utils import current_time_local, today_local
 
 
 @dataclass(slots=True)
@@ -67,8 +68,9 @@ class ScannerService:
 
     @staticmethod
     def calculate_status(entrada: str, hora_actual: time) -> str:
-        entrada_dt = datetime.combine(date.today(), datetime.strptime(entrada, "%H:%M").time())
-        actual_dt = datetime.combine(date.today(), hora_actual)
+        local_today = today_local()
+        entrada_dt = datetime.combine(local_today, datetime.strptime(entrada, "%H:%M").time())
+        actual_dt = datetime.combine(local_today, hora_actual)
         delta_minutes = int((actual_dt - entrada_dt).total_seconds() // 60)
 
         if delta_minutes <= 5:
@@ -80,8 +82,8 @@ class ScannerService:
     @staticmethod
     def register_attendance(qr_payload: str, usuario_registro: str) -> ScanResult:
         qr_uuid = ScannerService._normalize_payload(qr_payload)
-        today = date.today()
-        current_time = datetime.now().time().replace(microsecond=0)
+        today = today_local()
+        current_time = current_time_local()
 
         with get_session() as session:
             docente = session.scalar(select(Docente).where(Docente.qr_uuid == qr_uuid))

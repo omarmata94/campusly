@@ -8,6 +8,7 @@ import streamlit as st
 from database.db import init_db
 from database.models import Docente
 from services.reports import AttendanceFilters, ReportService
+from services.time_utils import today_local
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar, styled_attendance_table
 
 
@@ -23,8 +24,9 @@ def main() -> None:
 
     with st.form("filters_form"):
         c1, c2 = st.columns(2)
-        fecha_inicio = c1.date_input("Fecha inicial", value=date.today())
-        fecha_fin = c2.date_input("Fecha final", value=date.today())
+        default_date = today_local()
+        fecha_inicio = c1.date_input("Fecha inicial", value=default_date)
+        fecha_fin = c2.date_input("Fecha final", value=default_date)
 
         docentes_df = pd.DataFrame()
         with st.spinner("Cargando docentes..."):

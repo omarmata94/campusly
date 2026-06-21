@@ -6,11 +6,12 @@ import pandas as pd
 import streamlit as st
 
 from services.reports import AttendanceFilters, ReportService
+from services.time_utils import today_local
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar, styled_attendance_table
 
 
 def _period_dates(periodo: str) -> tuple[date, date]:
-    today = date.today()
+    today = today_local()
     if periodo == "Diario":
         return today, today
     if periodo == "Semanal":
