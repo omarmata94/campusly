@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time
 from typing import Optional
 
-import cv2
 import numpy as np
 from PIL import Image
 
@@ -17,7 +16,6 @@ from sqlalchemy import select
 
 from database.db import get_session
 from database.models import Asistencia, Docente
-from services.qr_generator import QRGenerator
 
 
 @dataclass(slots=True)
@@ -30,23 +28,36 @@ class ScanResult:
 
 class ScannerService:
     @staticmethod
+    def _load_cv2():
+        try:
+            import cv2  # type: ignore
+
+            return cv2
+        except Exception:
+            return None
+
+    @staticmethod
     def _normalize_payload(raw_payload: str) -> str:
         return raw_payload.strip()
 
     @staticmethod
     def decode_qr_from_image(image: Image.Image) -> Optional[str]:
         rgb = image.convert("RGB")
-        frame = cv2.cvtColor(np.array(rgb), cv2.COLOR_RGB2BGR)
         payloads: list[str] = []
 
         if zbar_decode is not None:
-            decoded = zbar_decode(frame)
+            decoded = zbar_decode(rgb)
             for item in decoded:
                 payload = getattr(item, "data", b"").decode("utf-8", errors="ignore").strip()
                 if payload:
                     payloads.append(payload)
 
         if not payloads:
+            cv2 = ScannerService._load_cv2()
+            if cv2 is None:
+                return None
+
+            frame = cv2.cvtColor(np.array(rgb), cv2.COLOR_RGB2BGR)
             detector = cv2.QRCodeDetector()
             data, _, _ = detector.detectAndDecode(frame)
             if data:
