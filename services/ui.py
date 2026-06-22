@@ -5,6 +5,7 @@ import streamlit as st
 
 
 APP_NAME = "Sistema de Asistencia Docente mediante QR"
+APP_AUTHOR = "Ing. Omar Mata"
 
 
 def configure_page(title: str) -> None:
@@ -383,6 +384,15 @@ def render_sidebar(user: dict | None = None) -> None:
                 """,
                 unsafe_allow_html=True,
             )
+
+        st.markdown(
+            f"""
+            <div style="margin-top:1rem; padding:0.7rem 0.8rem; border:1px solid var(--border); border-radius:12px; background:#f8fafc; color:var(--muted); font-size:12px;">
+                Hecho por <strong>{APP_AUTHOR}</strong>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def page_hero(title: str, subtitle: str, eyebrow: str = "Campusly") -> None:

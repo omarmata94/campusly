@@ -67,6 +67,12 @@ class ScannerService:
         return payloads[0] if payloads else None
 
     @staticmethod
+    def identify_docente(qr_payload: str) -> Optional[Docente]:
+        qr_uuid = ScannerService._normalize_payload(qr_payload)
+        with get_session() as session:
+            return session.scalar(select(Docente).where(Docente.qr_uuid == qr_uuid))
+
+    @staticmethod
     def calculate_status(entrada: str, hora_actual: time) -> str:
         local_today = today_local()
         entrada_dt = datetime.combine(local_today, datetime.strptime(entrada, "%H:%M").time())
@@ -80,7 +86,7 @@ class ScannerService:
         return "Falta"
 
     @staticmethod
-    def register_attendance(qr_payload: str, usuario_registro: str) -> ScanResult:
+    def register_attendance(qr_payload: str, usuario_registro: str, expected_docente_id: Optional[int] = None) -> ScanResult:
         qr_uuid = ScannerService._normalize_payload(qr_payload)
         today = today_local()
         current_time = current_time_local()
@@ -89,6 +95,13 @@ class ScannerService:
             docente = session.scalar(select(Docente).where(Docente.qr_uuid == qr_uuid))
             if not docente:
                 return ScanResult(success=False, message="QR no reconocido")
+
+            if expected_docente_id is not None and docente.id != expected_docente_id:
+                return ScanResult(
+                    success=False,
+                    message="El QR pertenece a un docente distinto al seleccionado",
+                    docente=docente,
+                )
 
             existing = session.scalar(
                 select(Asistencia).where(Asistencia.docente_id == docente.id, Asistencia.fecha == today)
