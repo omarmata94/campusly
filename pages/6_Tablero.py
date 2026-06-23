@@ -8,7 +8,7 @@ import streamlit as st
 
 from services.reports import ReportService
 from services.time_utils import today_local
-from services.ui import APP_NAME, configure_page, logout_button, metric_card, page_hero, render_sidebar, styled_attendance_table
+from services.ui import APP_NAME, configure_page, logout_button, metric_card, page_hero, render_sidebar, require_login, styled_attendance_table
 
 
 def _metrics_to_columns(metrics: dict[str, int]) -> None:
@@ -21,10 +21,7 @@ def _metrics_to_columns(metrics: dict[str, int]) -> None:
 
 def main() -> None:
     configure_page(f"{APP_NAME} | Tablero")
-    user = st.session_state.get("auth_user")
-    if not user:
-        st.warning("Debes iniciar sesión para continuar.")
-        st.stop()
+    user = require_login(["Administrador", "Prefecto"])
 
     render_sidebar(user)
     logout_button()

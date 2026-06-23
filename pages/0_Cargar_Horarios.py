@@ -8,9 +8,13 @@ from __future__ import annotations
 
 import tempfile
 import os
+import uuid
+import sqlite3
+import shutil
+from datetime import datetime
 import streamlit as st
 
-from database.db import init_db, get_session
+from database.db import DB_PATH, init_db, get_session
 from database.models import Docente, DocenteHoraClase, HoraClase, Turno
 from services.pdf_horario_import import PDFHorarioImportService
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar
@@ -19,7 +23,7 @@ from services.ui import APP_NAME, configure_page, logout_button, page_hero, requ
 def main() -> None:
     init_db()
     configure_page(f"{APP_NAME} | Cargar Horarios")
-    user = require_login(["Administrador", "Docente"])
+    user = require_login(["Administrador", "Prefecto"])
 
     render_sidebar(user)
     logout_button()
@@ -54,6 +58,8 @@ def main() -> None:
         - Cada turno se importará por separado
         - Puedes cargar nuevamente para actualizar tus horarios
         """)
+
+    _render_admin_reset_section(user)
 
     # Sección de carga de archivo
     st.markdown("### Seleccionar Archivo")
@@ -192,12 +198,100 @@ def main() -> None:
             pass
 
 
+def _render_admin_reset_section(user: dict) -> None:
+    """Muestra acciones de mantenimiento solo para administradores."""
+    if user.get("rol") != "Administrador":
+        return
+
+    with st.expander("🧹 Mantenimiento del sistema (Admin)"):
+        st.warning(
+            "Esta acción elimina docentes, asignaciones de horario y asistencias. "
+            "No borra usuarios ni catálogos (turnos/horas)."
+        )
+        confirm_reset = st.checkbox(
+            "Confirmo que quiero limpiar los datos operativos",
+            key="confirm_reset_operational_data",
+        )
+
+        if st.button(
+            "🧨 Limpiar datos operativos ahora",
+            type="secondary",
+            use_container_width=True,
+            disabled=not confirm_reset,
+        ):
+            result = _reset_operational_data()
+            if result["success"]:
+                st.success(result["message"])
+                st.info(f"Respaldo creado en: {result['backup_path']}")
+                st.rerun()
+            else:
+                st.error(result["message"])
+                for error in result.get("errors", []):
+                    st.error(f"  • {error}")
+
+
+def _reset_operational_data() -> dict:
+    """Limpia datos operativos y crea un respaldo de la base SQLite."""
+    try:
+        db_path = DB_PATH
+        if not db_path.exists():
+            return {
+                "success": False,
+                "message": "No se encontró la base de datos para limpiar.",
+                "errors": [str(db_path)],
+            }
+
+        backup_dir = db_path.parent / "backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = backup_dir / f"{db_path.stem}_preclean_manual_{ts}.db"
+        shutil.copy2(db_path, backup_path)
+
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("PRAGMA foreign_keys = ON")
+
+        for table in ["asistencias", "docente_horas_clase", "docentes"]:
+            exists = cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+                (table,),
+            ).fetchone()
+            if exists:
+                cur.execute(f"DELETE FROM {table}")
+
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "message": "Datos operativos limpiados correctamente.",
+            "backup_path": str(backup_path),
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": "No se pudieron limpiar los datos operativos.",
+            "errors": [str(e)],
+        }
+
+
 def _import_to_db(result, entries, clear_existing: bool) -> dict:
     """
     Importa los datos extraídos a la base de datos
     """
     try:
         with get_session() as session:
+            dia_map = {
+                "lunes": 0,
+                "martes": 1,
+                "miércoles": 2,
+                "miercoles": 2,
+                "jueves": 3,
+                "viernes": 4,
+                "sábado": 5,
+                "sabado": 5,
+            }
+
             # 1. Buscar o crear docente
             numero_empleado = result.numero_empleado
             docente = session.query(Docente).filter_by(
@@ -205,12 +299,33 @@ def _import_to_db(result, entries, clear_existing: bool) -> dict:
             ).first()
 
             if not docente:
+                nombre_completo = (result.docente_nombre or "").strip()
+                partes = [p for p in nombre_completo.split() if p]
+                nombre = partes[0] if partes else "Docente"
+                apellidos_tokens = partes[1:]
+                apellido_paterno = apellidos_tokens[0] if apellidos_tokens else ""
+                apellido_materno = " ".join(apellidos_tokens[1:]) if len(apellidos_tokens) > 1 else ""
+                apellidos = " ".join(apellidos_tokens)
+
+                if (result.turno or "").lower() == "nocturno":
+                    horario_entrada = "18:00"
+                    horario_salida = "21:00"
+                else:
+                    horario_entrada = "08:00"
+                    horario_salida = "17:00"
+
                 docente = Docente(
                     numero_empleado=numero_empleado,
-                    nombre=result.docente_nombre,
-                    email="",
-                    qr_uuid="",
-                    tipo_usuario="Docente",
+                    nombre=nombre,
+                    apellido_paterno=apellido_paterno,
+                    apellido_materno=apellido_materno,
+                    apellidos=apellidos,
+                    departamento="Sin especificar",
+                    puesto="Docente",
+                    horario_entrada=horario_entrada,
+                    horario_salida=horario_salida,
+                    qr_uuid=str(uuid.uuid4()),
+                    activo=True,
                 )
                 session.add(docente)
                 session.flush()
@@ -242,6 +357,13 @@ def _import_to_db(result, entries, clear_existing: bool) -> dict:
 
             for entry in entries:
                 try:
+                    dia_key = str(entry.dia_semana).lower().strip()
+                    dia_numero = dia_map.get(dia_key)
+                    if dia_numero is None:
+                        errors.append(f"Día inválido: {entry.dia_semana}")
+                        skipped_count += 1
+                        continue
+
                     # Validar que la hora clase existe
                     hora_clase = (
                         session.query(HoraClase)
@@ -263,7 +385,7 @@ def _import_to_db(result, entries, clear_existing: bool) -> dict:
                             docente_id=docente.id,
                             turno_id=turno.id,
                             numero_hora=entry.numero_hora,
-                            dia_semana=entry.dia_semana,
+                            dia_semana=dia_numero,
                         )
                         .first()
                     )
@@ -278,7 +400,7 @@ def _import_to_db(result, entries, clear_existing: bool) -> dict:
                         turno_id=turno.id,
                         hora_clase_id=hora_clase.id,
                         numero_hora=entry.numero_hora,
-                        dia_semana=entry.dia_semana,
+                        dia_semana=dia_numero,
                         salon=entry.salon,
                         grupo=entry.grupo_codigo,
                     )

@@ -8,6 +8,32 @@ APP_NAME = "Sistema de Asistencia Docente mediante QR"
 APP_AUTHOR = "Ing. Omar Mata"
 
 
+def _allowed_sidebar_pages(role: str) -> list[tuple[str, str, str]]:
+    all_pages = [
+        ("app.py", "Inicio", "🏠"),
+        ("pages/0_Cargar_Horarios.py", "Cargar Horarios", "📅"),
+        ("pages/1_Docentes.py", "Docentes", "👨‍🏫"),
+        ("pages/2_Escaner_QR.py", "Escáner QR", "📷"),
+        ("pages/3_Asignar_Horarios.py", "Asignar Horarios", "🗂️"),
+        ("pages/4_Asistencias.py", "Asistencias", "✅"),
+        ("pages/5_Reportes.py", "Reportes", "📊"),
+        ("pages/6_Tablero.py", "Tablero", "📈"),
+        ("pages/7_Usuarios.py", "Usuarios", "👥"),
+    ]
+    if role == "Administrador":
+        return all_pages
+    if role == "Prefecto":
+        return [
+            ("app.py", "Inicio", "🏠"),
+            ("pages/0_Cargar_Horarios.py", "Cargar Horarios", "📅"),
+            ("pages/2_Escaner_QR.py", "Escáner QR", "📷"),
+            ("pages/4_Asistencias.py", "Asistencias", "✅"),
+            ("pages/5_Reportes.py", "Reportes", "📊"),
+            ("pages/6_Tablero.py", "Tablero", "📈"),
+        ]
+    return [("app.py", "Inicio", "🏠")]
+
+
 def configure_page(title: str) -> None:
     st.set_page_config(page_title=title, page_icon="🎓", layout="wide", initial_sidebar_state="expanded")
     st.markdown(
@@ -104,7 +130,7 @@ def configure_page(title: str) -> None:
             }
 
             [data-testid="stSidebarNav"] {
-                padding-top: 0.4rem;
+                display: none;
             }
 
             [data-testid="stSidebarNav"] ul {
@@ -384,6 +410,10 @@ def render_sidebar(user: dict | None = None) -> None:
                 """,
                 unsafe_allow_html=True,
             )
+
+            st.markdown("### Navegación")
+            for page_path, label, icon in _allowed_sidebar_pages(user.get("rol", "")):
+                st.page_link(page_path, label=label, icon=icon, use_container_width=True)
 
         st.markdown(
             f"""

@@ -161,7 +161,7 @@ def _delete_docente(docente_id: int) -> None:
 def main() -> None:
     init_db()
     configure_page(f"{APP_NAME} | Docentes")
-    user = require_login(["Administrador", "Prefecto"])
+    user = require_login(["Administrador"])
 
     render_sidebar(user)
     logout_button()

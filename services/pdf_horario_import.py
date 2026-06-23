@@ -115,16 +115,25 @@ class PDFHorarioExtractor:
                 self._extract_header_info(text)
 
                 # Extraer tabla de horario
-                tables = page.extract_tables()
+                tables = self._extract_candidate_tables(page)
                 if not tables:
                     return False, [], ["No se encontraron tablas en el PDF"]
 
-                # La tabla principal debe ser la primera o segunda
-                for table in tables:
-                    if self._is_schedule_table(table):
-                        entries, parse_errors = self._parse_schedule_table(table)
-                        errors.extend(parse_errors)
-                        break
+                # Intentar parsear todas las tablas candidatas y conservar la más útil.
+                best_entries: List[HorarioEntry] = []
+                parse_errors: List[str] = []
+                schedule_tables = [t for t in tables if self._is_schedule_table(t)]
+                candidate_tables = schedule_tables if schedule_tables else tables
+
+                for idx, table in enumerate(candidate_tables):
+                    table_entries, table_errors = self._parse_schedule_table(table)
+                    if table_errors:
+                        parse_errors.extend([f"Tabla {idx + 1}: {err}" for err in table_errors])
+                    if len(table_entries) > len(best_entries):
+                        best_entries = table_entries
+
+                entries = best_entries
+                errors.extend(parse_errors)
 
                 if not entries:
                     errors.append("No se pudo parsear la tabla de horario")
@@ -135,6 +144,21 @@ class PDFHorarioExtractor:
         except Exception as e:
             logger.exception("Error al extraer PDF")
             return False, [], [f"Error al procesar PDF: {str(e)}"]
+
+    def _extract_candidate_tables(self, page) -> List[List[List[str]]]:
+        """Extrae tablas probando más de una estrategia de detección."""
+        tables = page.extract_tables() or []
+        if tables:
+            return tables
+
+        settings = {
+            "vertical_strategy": "lines",
+            "horizontal_strategy": "text",
+            "intersection_tolerance": 8,
+            "snap_tolerance": 3,
+            "join_tolerance": 3,
+        }
+        return page.extract_tables(table_settings=settings) or []
 
     def _extract_header_info(self, text: str) -> None:
         """Extrae nombre del docente y turno del texto"""
@@ -170,16 +194,24 @@ class PDFHorarioExtractor:
     def _is_schedule_table(self, table: List[List[str]]) -> bool:
         """
         Verifica si una tabla es la tabla de horario
-        Busca "Lunes", "Martes", etc. en la primera fila
+        Busca "Lunes", "Martes", etc. en las primeras filas
         """
-        if not table or not table[0]:
+        if not table:
             return False
 
-        first_row = table[0]
-        dias_found = sum(
-            1 for cell in first_row if cell and any(d in str(cell) for d in self.DIAS_SEMANA)
-        )
-        return dias_found >= 3  # Al menos 3 días encontrados
+        max_rows_to_scan = min(3, len(table))
+        found_days = set()
+
+        for row in table[:max_rows_to_scan]:
+            for cell in row:
+                if not cell:
+                    continue
+                cell_text = str(cell)
+                for dia in self.DIAS_SEMANA:
+                    if dia in cell_text:
+                        found_days.add(dia)
+
+        return len(found_days) >= 3
 
     def _parse_schedule_table(
         self, table: List[List[str]]
@@ -196,36 +228,61 @@ class PDFHorarioExtractor:
         if not table or len(table) < 2:
             return entries, ["Tabla de horario muy pequeña"]
 
-        # Encontrar índices de columnas de días
-        header_row = table[0]
-        dias_indices = {}
-        
-        for i, cell in enumerate(header_row):
-            if cell:
+        # Normalizar la tabla para evitar fallas por filas irregulares.
+        max_cols = max(len(row) for row in table)
+        normalized_table = [row + [""] * (max_cols - len(row)) for row in table]
+
+        header_idx = -1
+        dias_indices: Dict[str, int] = {}
+
+        for row_idx, row in enumerate(normalized_table[: min(4, len(normalized_table))]):
+            current_indices: Dict[str, int] = {}
+            for i, cell in enumerate(row):
+                if not cell:
+                    continue
+                cell_text = str(cell)
                 for dia in self.DIAS_SEMANA:
-                    if dia in str(cell):
-                        dias_indices[dia] = i
+                    if dia in cell_text:
+                        current_indices[dia] = i
                         break
+
+            if len(current_indices) > len(dias_indices):
+                dias_indices = current_indices
+                header_idx = row_idx
 
         if not dias_indices:
             return entries, ["No se encontraron columnas de días"]
 
+        # Heurística: columna con más coincidencias de horarios debajo del header.
+        hora_col_idx = 0
+        best_matches = -1
+        for col_idx in range(max_cols):
+            matches = 0
+            for row in normalized_table[header_idx + 1 :]:
+                if col_idx >= len(row):
+                    continue
+                if self._extract_hora_number(str(row[col_idx] or "").strip()) is not None:
+                    matches += 1
+            if matches > best_matches:
+                best_matches = matches
+                hora_col_idx = col_idx
+
+        if best_matches <= 0:
+            return entries, ["No se detectó columna de horas"]
+
         # Procesar filas de horario
-        current_hora = ""
-        
-        for row_idx in range(1, len(table)):
-            row = table[row_idx]
-            
-            if not row[0]:
+        for row_idx in range(header_idx + 1, len(normalized_table)):
+            row = normalized_table[row_idx]
+
+            if hora_col_idx >= len(row) or not row[hora_col_idx]:
                 continue
 
-            # Primera columna contiene la hora
-            hora_cell = str(row[0]).strip()
+            # Identificar la hora desde la columna detectada.
+            hora_cell = str(row[hora_col_idx]).strip()
             
-            # Detectar número de hora desde el formato "HH:MM - HH:MM"
             numero_hora = self._extract_hora_number(hora_cell)
             
-            if numero_hora is None or numero_hora == "Descanso":
+            if numero_hora is None:
                 continue
 
             # Procesar cada día
@@ -258,9 +315,40 @@ class PDFHorarioExtractor:
 
     def _extract_hora_number(self, hora_cell: str) -> Optional[int]:
         """Extrae el número de hora del texto de la celda"""
+        if not hora_cell:
+            return None
+
+        normalized_cell = (
+            hora_cell.replace("–", "-")
+            .replace("—", "-")
+            .replace("−", "-")
+        )
+        normalized_cell = re.sub(r"\s+", " ", normalized_cell).strip()
+
         for hora_pattern, numero in self.horas_map.items():
-            if hora_pattern in hora_cell:
-                return numero if isinstance(numero, int) else None
+            if not isinstance(numero, int):
+                continue
+
+            normalized_pattern = re.sub(
+                r"\s+",
+                " ",
+                hora_pattern.replace("–", "-").replace("—", "-").replace("−", "-")
+            ).strip()
+
+            if normalized_pattern in normalized_cell:
+                return numero
+
+        # Fallback: empatar por hora inicial (ej: "8:00" aunque no venga rango completo).
+        start_match = re.search(r"(\d{1,2}:\d{2})", normalized_cell)
+        if start_match:
+            start_time = start_match.group(1)
+            for hora_pattern, numero in self.horas_map.items():
+                if not isinstance(numero, int):
+                    continue
+                pattern_start = re.search(r"(\d{1,2}:\d{2})", hora_pattern)
+                if pattern_start and pattern_start.group(1) == start_time:
+                    return numero
+
         return None
 
     def _parse_cell_content(self, content: str) -> Optional[Dict[str, str]]:
@@ -284,7 +372,8 @@ class PDFHorarioExtractor:
 class PDFHorarioImportService:
     """Servicio de importación de horarios desde PDF a la base de datos"""
 
-    def __init__(self):xtractor()
+    def __init__(self):
+        self.extractor = PDFHorarioExtractor()
 
     def import_from_pdf(self, pdf_path: str) -> PDFImportResult:
         """

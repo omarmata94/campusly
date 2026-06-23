@@ -77,7 +77,7 @@ def _delete_assignment(assignment_id: int) -> bool:
 def main() -> None:
     init_db()
     configure_page(f"{APP_NAME} | Asignar Horarios")
-    user = require_login(["Administrador", "Prefecto"])
+    user = require_login(["Administrador"])
 
     render_sidebar(user)
     logout_button()
