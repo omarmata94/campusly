@@ -372,7 +372,7 @@ class PDFHorarioExtractor:
 class PDFHorarioImportService:
     """Servicio de importación de horarios desde PDF a la base de datos"""
 
-    def __init__(self, db_service):
+    def __init__(self, db_service=None):
         self.db_service = db_service
         self.extractor = PDFHorarioExtractor()
 
