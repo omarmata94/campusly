@@ -13,7 +13,7 @@ from database.models import Asistencia, Docente
 from services.time_utils import today_local
 
 
-@dataclass(slots=True)
+@dataclass
 class AttendanceFilters:
     fecha_inicio: Optional[date] = None
     fecha_fin: Optional[date] = None
@@ -31,6 +31,10 @@ class ReportService:
                 Asistencia.fecha.label("fecha"),
                 Asistencia.hora.label("hora"),
                 Asistencia.estatus.label("estatus"),
+                Asistencia.turno.label("turno"),
+                Asistencia.numero_hora.label("numero_hora"),
+                Asistencia.salon.label("salon"),
+                Asistencia.grupo.label("grupo"),
                 Asistencia.usuario_registro.label("usuario_registro"),
                 Docente.id.label("docente_id"),
                 Docente.numero_empleado.label("numero_empleado"),

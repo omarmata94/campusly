@@ -1,0 +1,51 @@
+numero_empleado,turno,dia_semana,numero_hora,salon,grupo
+UC0320,Matutino,Lunes,1,DI-A108,67QAI2A
+UC0320,Matutino,Lunes,2,DI-A108,67QAI2A
+UC0320,Matutino,Lunes,3,DII-A104,64TIAEVND5
+UC0320,Matutino,Lunes,4,DII-A104,64TIAEVND5
+UC0320,Matutino,Lunes,5,D1-A202,67TIAEVND2A
+UC0320,Matutino,Lunes,6,D1-A202,67TIAEVND2A
+UC0320,Matutino,Lunes,7,Comida,Comida
+UC0320,Matutino,Lunes,8,Administrativo,Desarrollo Docente
+UC0320,Matutino,Lunes,9,Administrativo,Administrativo
+UC0320,Matutino,Lunes,10,Administrativo,Administrativo
+UC0320,Matutino,Martes,1,DI-A203,67TIAEVND2B
+UC0320,Matutino,Martes,2,DI-A203,67TIAEVND2B
+UC0320,Matutino,Martes,3,DII-A104,64TIAEVND5
+UC0320,Matutino,Martes,4,DII-A104,64TIAEVND5
+UC0320,Matutino,Martes,5,D1-A202,67TIAEVND2A
+UC0320,Matutino,Martes,6,DI-A108,67QAI2A
+UC0320,Matutino,Martes,7,Comida,Comida
+UC0320,Matutino,Martes,8,Administrativo,Desarrollo Docente
+UC0320,Matutino,Martes,9,Administrativo,Administrativo
+UC0320,Matutino,Martes,10,Administrativo,Administrativo
+UC0320,Matutino,Miércoles,1,DI-A203,67TIAEVND2B
+UC0320,Matutino,Miércoles,2,DI-A203,67TIAEVND2B
+UC0320,Matutino,Miércoles,3,DI-A108,67QAI2A
+UC0320,Matutino,Miércoles,4,DII-A104,64TIAEVND5
+UC0320,Matutino,Miércoles,5,DI-A108,67QAI2A
+UC0320,Matutino,Miércoles,6,DI-A203,67TIAEVND2B (Tutoría)
+UC0320,Matutino,Miércoles,7,Comida,Comida
+UC0320,Matutino,Miércoles,8,Administrativo,Desarrollo Docente
+UC0320,Matutino,Miércoles,9,Administrativo,Administrativo
+UC0320,Matutino,Miércoles,10,Administrativo,Administrativo
+UC0320,Matutino,Jueves,1,DII-A104,64TIAEVND5
+UC0320,Matutino,Jueves,2,DII-A104,64TIAEVND5
+UC0320,Matutino,Jueves,3,DII-A104,64TIAEVND5 (Integradora II)
+UC0320,Matutino,Jueves,4,D1-A202,67TIAEVND2A
+UC0320,Matutino,Jueves,5,DI-A203,67TIAEVND2B
+UC0320,Matutino,Jueves,6,DI-A203,67TIAEVND2B
+UC0320,Matutino,Jueves,7,Comida,Comida
+UC0320,Matutino,Jueves,8,Administrativo,Desarrollo Docente
+UC0320,Matutino,Jueves,9,Administrativo,Administrativo
+UC0320,Matutino,Jueves,10,Estadía,Estadía
+UC0320,Matutino,Viernes,1,DII-A104,64TIAEVND5 (Estadía)
+UC0320,Matutino,Viernes,2,DII-A104,64TIAEVND5 (Estadía)
+UC0320,Matutino,Viernes,3,DII-A104,64TIAEVND5 (Integradora II)
+UC0320,Matutino,Viernes,4,DII-A104,64TIAEVND5 (Integradora II)
+UC0320,Matutino,Viernes,5,DI-A108,67QAI2A
+UC0320,Matutino,Viernes,6,D1-A202,67TIAEVND2A
+UC0320,Matutino,Viernes,7,Comida,Comida
+UC0320,Matutino,Viernes,8,Administrativo,Desarrollo Docente
+UC0320,Matutino,Viernes,9,Administrativo,Administrativo
+UC0320,Matutino,Viernes,10,Estadía,Estadía

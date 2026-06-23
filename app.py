@@ -51,7 +51,7 @@ def render_login() -> None:
             """
             <div class="hero-card">
                 <h1>Sistema de Asistencia Docente mediante QR</h1>
-                <p class="soft-note">Control de asistencia con QR institucional, SQLite local, reportes y dashboard en tiempo real.</p>
+                <p class="soft-note">Control de asistencia con QR institucional, SQLite local, reportes y tablero en tiempo real.</p>
                 <div style="margin-top: 1rem;">
                     <span class="badge-pill">Seguridad</span>
                     <span class="badge-pill">QR único</span>
@@ -62,7 +62,7 @@ def render_login() -> None:
             """,
             unsafe_allow_html=True,
         )
-        st.write("Usa la barra lateral para navegar entre docentes, escáner, asistencias, reportes y dashboard.")
+        st.write("Usa la barra lateral para navegar entre docentes, escáner, asistencias, reportes y tablero.")
     with col_right:
         st.markdown("### Inicio de sesión")
         with st.form("login_form"):

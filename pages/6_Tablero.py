@@ -20,7 +20,7 @@ def _metrics_to_columns(metrics: dict[str, int]) -> None:
 
 
 def main() -> None:
-    configure_page(f"{APP_NAME} | Dashboard")
+    configure_page(f"{APP_NAME} | Tablero")
     user = st.session_state.get("auth_user")
     if not user:
         st.warning("Debes iniciar sesión para continuar.")
@@ -29,7 +29,7 @@ def main() -> None:
     render_sidebar(user)
     logout_button()
 
-    page_hero("Dashboard", "Resumen ejecutivo de asistencia docente con métricas, tendencias y últimos registros.")
+    page_hero("Tablero", "Resumen ejecutivo de asistencia docente con métricas, tendencias y últimos registros.")
 
     metrics = ReportService.summary_totals()
     _metrics_to_columns(metrics)

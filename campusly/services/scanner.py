@@ -15,11 +15,11 @@ except Exception:  # pragma: no cover - fallback path for missing zbar
 from sqlalchemy import select
 
 from database.db import get_session
-from database.models import Asistencia, Docente
+from database.models import Asistencia, Docente, DocenteHoraClase, HoraClase
 from services.time_utils import current_time_local, today_local
 
 
-@dataclass(slots=True)
+@dataclass
 class ScanResult:
     success: bool
     message: str
@@ -73,9 +73,28 @@ class ScannerService:
             return session.scalar(select(Docente).where(Docente.qr_uuid == qr_uuid))
 
     @staticmethod
-    def calculate_status(entrada: str, hora_actual: time) -> str:
+    def get_docentes_for_turno_hora_salon(turno: str, numero_hora: int, salon: str) -> list[DocenteHoraClase]:
+        """Obtiene docentes asignados a un turno, hora y salón específicos."""
+        with get_session() as session:
+            from datetime import datetime
+
+            today = today_local()
+            day_of_week = today.weekday()
+
+            return session.execute(
+                select(DocenteHoraClase).where(
+                    DocenteHoraClase.turno.has(nombre=turno),
+                    DocenteHoraClase.numero_hora == numero_hora,
+                    DocenteHoraClase.salon == salon,
+                    DocenteHoraClase.dia_semana == day_of_week,
+                )
+            ).scalars().all()
+
+    @staticmethod
+    def calculate_status(hora_clase_inicio: time, hora_actual: time) -> str:
+        """Calcula el estatus basado en la hora de inicio de la clase."""
         local_today = today_local()
-        entrada_dt = datetime.combine(local_today, datetime.strptime(entrada, "%H:%M").time())
+        entrada_dt = datetime.combine(local_today, hora_clase_inicio)
         actual_dt = datetime.combine(local_today, hora_actual)
         delta_minutes = int((actual_dt - entrada_dt).total_seconds() // 60)
 
@@ -86,38 +105,91 @@ class ScannerService:
         return "Falta"
 
     @staticmethod
-    def register_attendance(qr_payload: str, usuario_registro: str, expected_docente_id: Optional[int] = None) -> ScanResult:
+    def register_attendance(
+        qr_payload: str,
+        turno: str,
+        numero_hora: int,
+        salon: str,
+        usuario_registro: str,
+    ) -> ScanResult:
+        """Registra asistencia de un docente en un turno y hora específicos."""
         qr_uuid = ScannerService._normalize_payload(qr_payload)
         today = today_local()
         current_time = current_time_local()
 
         with get_session() as session:
+            # Obtener docente del QR
             docente = session.scalar(select(Docente).where(Docente.qr_uuid == qr_uuid))
             if not docente:
                 return ScanResult(success=False, message="QR no reconocido")
 
-            if expected_docente_id is not None and docente.id != expected_docente_id:
+            # Obtener hora clase
+            from datetime import datetime
+
+            day_of_week = today.weekday()
+            hora_clase = session.scalar(
+                select(HoraClase).where(
+                    HoraClase.turno.has(nombre=turno),
+                    HoraClase.numero == numero_hora,
+                )
+            )
+            if not hora_clase:
+                return ScanResult(success=False, message="Hora clase no encontrada")
+
+            # Validar que el docente esté asignado a este turno, hora y salón
+            docente_hora = session.scalar(
+                select(DocenteHoraClase).where(
+                    DocenteHoraClase.docente_id == docente.id,
+                    DocenteHoraClase.hora_clase_id == hora_clase.id,
+                    DocenteHoraClase.salon == salon,
+                    DocenteHoraClase.dia_semana == day_of_week,
+                )
+            )
+            if not docente_hora:
                 return ScanResult(
                     success=False,
-                    message="El QR pertenece a un docente distinto al seleccionado",
+                    message=f"El docente no está asignado a {turno} - Hora {numero_hora} - Salón {salon}",
                     docente=docente,
                 )
 
+            # Verificar asistencia duplicada (mismo día, misma hora clase)
             existing = session.scalar(
-                select(Asistencia).where(Asistencia.docente_id == docente.id, Asistencia.fecha == today)
+                select(Asistencia).where(
+                    Asistencia.docente_id == docente.id,
+                    Asistencia.fecha == today,
+                    Asistencia.hora_clase_id == hora_clase.id,
+                )
             )
             if existing:
-                return ScanResult(success=False, message="El docente ya registró asistencia hoy", docente=docente, asistencia=existing)
+                return ScanResult(
+                    success=False,
+                    message="El docente ya registró asistencia en esta hora",
+                    docente=docente,
+                    asistencia=existing,
+                )
 
-            estatus = ScannerService.calculate_status(docente.horario_entrada, current_time)
+            # Calcular estatus
+            estatus = ScannerService.calculate_status(hora_clase.hora_inicio, current_time)
+
+            # Registrar asistencia
             asistencia = Asistencia(
                 docente_id=docente.id,
+                hora_clase_id=hora_clase.id,
                 fecha=today,
                 hora=current_time,
+                turno=turno,
+                numero_hora=numero_hora,
+                salon=salon,
+                grupo=docente_hora.grupo,
                 estatus=estatus,
                 usuario_registro=usuario_registro,
             )
             session.add(asistencia)
             session.flush()
             session.refresh(asistencia)
-            return ScanResult(success=True, message="Asistencia registrada correctamente", docente=docente, asistencia=asistencia)
+            return ScanResult(
+                success=True,
+                message="Asistencia registrada correctamente",
+                docente=docente,
+                asistencia=asistencia,
+            )

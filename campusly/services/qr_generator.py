@@ -44,7 +44,7 @@ def _create_placeholder_logo(size: int = 180) -> Image.Image:
     return image
 
 
-@dataclass(slots=True)
+@dataclass
 class BadgeAsset:
     pdf_path: Path
     image_path: Path

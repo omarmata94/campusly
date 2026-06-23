@@ -15,7 +15,7 @@ from database.models import Usuario
 PBKDF2_ITERATIONS = 210000
 
 
-@dataclass(slots=True)
+@dataclass
 class AuthenticatedUser:
     id: int
     nombre: str
