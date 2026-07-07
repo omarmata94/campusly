@@ -159,21 +159,23 @@ def _home_recent_activity(limit: int = 10) -> pd.DataFrame:
 
 def _render_quick_action_cards(actions: list[tuple[str, str, str, str, str]]) -> None:
     col_left, col_right = st.columns(2, gap="small")
-    for index, (href, icon, title, subtitle, category) in enumerate(actions):
+    _page_map = {
+        "/Escaner_QR":       "pages/2_Escaner_QR.py",
+        "/Cargar_Horarios":  "pages/0_Cargar_Horarios.py",
+        "/Asignar_Horarios": "pages/3_Asignar_Horarios.py",
+        "/Asistencias":      "pages/4_Asistencias.py",
+        "/Reportes":         "pages/5_Reportes.py",
+        "/Tablero":          "pages/6_Tablero.py",
+        "/Usuarios":         "pages/7_Usuarios.py",
+        "/Docentes":         "pages/1_Docentes.py",
+    }
+    for index, (href, icon, title, subtitle, _category) in enumerate(actions):
+        page_file = _page_map.get(href)
         with col_left if index % 2 == 0 else col_right:
-            st.markdown(
-                f"""
-                <a class="quick-action-link reveal-card" data-category="{category}" href="{href}" target="_self">
-                    <div class="quick-action-icon">{icon}</div>
-                    <div class="quick-action-content">
-                        <div class="quick-action-title">{title}</div>
-                        <div class="quick-action-subtitle">{subtitle}</div>
-                    </div>
-                    <div class="quick-action-arrow">→</div>
-                </a>
-                """,
-                unsafe_allow_html=True,
-            )
+            if page_file:
+                st.page_link(page_file, label=f"{icon} **{title}** — {subtitle}")
+            else:
+                st.markdown(f"- {icon} {title}")
 
 
 def render_home_dashboard(user: dict) -> None:
