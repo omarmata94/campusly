@@ -76,84 +76,187 @@ def configure_page(title: str) -> None:
             }
 
             [data-testid="stSidebar"] {
-                background: #ffffff;
-                border-right: 1px solid var(--border);
-                width: 270px;
+                background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 251, 255, 0.92) 100%);
+                backdrop-filter: blur(8px);
+                border-right: 1px solid rgba(219, 230, 245, 0.6);
+                width: 282px;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
+                padding-top: 0.2rem;
             }
 
             [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-                gap: 0.35rem;
+                gap: 0.55rem;
             }
 
             [data-testid="stSidebar"] .sidebar-shell {
-                padding: 0.95rem;
+                padding: 0.35rem 0.9rem 0.6rem 0.9rem;
             }
 
             [data-testid="stSidebar"] .brand-card {
-                background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-                border: 1px solid var(--border);
-                border-radius: 18px;
-                padding: 0.95rem 1rem;
-                box-shadow: var(--shadow-soft);
+                background: radial-gradient(circle at 12% 12%, #e9f3ff 0%, #ffffff 45%);
+                border: 1px solid #d8e4f4;
+                border-radius: 20px;
+                padding: 0.75rem 0.95rem;
+                box-shadow: 0 10px 24px rgba(37, 99, 235, 0.08);
+            }
+
+            [data-testid="stSidebar"] .brand-card > div {
+                display: flex;
+                align-items: center;
+                gap: 0.85rem;
             }
 
             [data-testid="stSidebar"] .brand-mark {
-                display: inline-flex;
-                width: 42px;
-                height: 42px;
+                display: flex;
+                width: 70px;
+                height: 70px;
                 align-items: center;
                 justify-content: center;
-                border-radius: 14px;
-                background: linear-gradient(135deg, var(--primary) 0%, #60A5FA 100%);
+                border-radius: 16px;
+                background: linear-gradient(165deg, #1d4ed8 0%, #60a5fa 100%);
                 color: #fff;
                 font-weight: 800;
-                font-size: 1rem;
-                box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
+                font-size: 1.4rem;
+                box-shadow: 0 12px 20px rgba(37, 99, 235, 0.24);
+                overflow: hidden;
+                flex-shrink: 0;
+            }
+
+            [data-testid="stSidebar"] .brand-mark img {
+                width: 85%;
+                height: 85%;
+                object-fit: contain;
+                object-position: center;
             }
 
             [data-testid="stSidebar"] .brand-title {
-                color: var(--text);
-                font-size: 1.05rem;
+                color: #12223d;
+                font-size: 1.55rem;
                 font-weight: 800;
-                line-height: 1.1;
-                margin-top: 0.15rem;
+                line-height: 1.05;
+                margin-top: 0;
             }
 
             [data-testid="stSidebar"] .brand-subtitle {
-                color: var(--muted);
-                font-size: 0.78rem;
+                color: #5d708e;
+                font-size: 0.75rem;
+                margin-top: 0.08rem;
+                font-weight: 600;
+                letter-spacing: 0.01em;
+            }
+
+            [data-testid="stSidebar"] .session-card {
+                border-radius: 20px;
+                border: 1px solid #d8e4f4;
+                background: #ffffff;
+                box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+                padding: 0.75rem 1rem;
                 margin-top: 0.15rem;
+                margin-bottom: 0.4rem;
+            }
+
+            [data-testid="stSidebar"] .session-label {
+                color: #5d708e;
+                font-size: 0.73rem;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+            }
+
+            [data-testid="stSidebar"] .session-name {
+                margin-top: 0.45rem;
+                color: #0f1f3f;
+                font-weight: 800;
+                font-size: 1.02rem;
+            }
+
+            [data-testid="stSidebar"] .session-role {
+                color: #5d708e;
+                font-size: 0.85rem;
+                margin-top: 0.18rem;
+                font-weight: 600;
+            }
+
+            [data-testid="stSidebar"] .nav-title {
+                color: #102446;
+                font-size: 1.95rem;
+                font-weight: 800;
+                letter-spacing: -0.02em;
+                margin: 0.1rem 0 0.2rem 0;
             }
 
             [data-testid="stSidebar"] a {
-                color: var(--text) !important;
+                color: #102446 !important;
+                text-decoration: none !important;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"],
+            [data-testid="stSidebar"] .stPageLink > a {
+                display: flex;
+                align-items: center;
+                border-radius: 14px;
+                padding: 0.5rem 0.7rem;
+                border: 1px solid transparent;
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                font-weight: 700;
+                min-height: 44px;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"]:hover,
+            [data-testid="stSidebar"] .stPageLink > a:hover {
+                background: linear-gradient(135deg, #edf4ff 0%, #f0f7ff 100%);
+                border-color: #d5e3f8;
+                transform: translateX(3px);
+                box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+            }
+
+            [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"],
+            [data-testid="stSidebar"] .stPageLink > a[aria-current="page"] {
+                background: linear-gradient(135deg, #eaf2ff 0%, #dce7f5 100%);
+                border-color: #bfd9f9;
+                box-shadow: inset 4px 0 0 #1d4ed8, 0 4px 12px rgba(37, 99, 235, 0.12);
+            }
+
+            [data-testid="stSidebar"] .sidebar-credit {
+                margin-top: 0.8rem;
+                padding: 0.35rem 0.5rem;
+                border: none;
+                border-radius: 8px;
+                background: transparent;
+                color: #94a3b8;
+                font-size: 0.7rem;
+                text-align: center;
+                font-weight: 400;
+                line-height: 1.4;
+                transition: color 0.3s ease;
+            }
+
+            [data-testid="stSidebar"] .sidebar-credit:hover {
+                color: #64748b;
+            }
+
+            [data-testid="stSidebar"] .stButton > button {
+                border-radius: 16px;
+                border: 1px solid #d8e4f4;
+                background: #ffffff;
+                color: #11274a;
+                min-height: 52px;
+                font-size: 1.02rem;
+                font-weight: 700;
+                box-shadow: 0 6px 14px rgba(15, 23, 42, 0.05);
+            }
+
+            [data-testid="stSidebar"] .stButton > button:hover {
+                background: #f5f9ff;
+                border-color: #c8d8f3;
+                box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+                transform: translateY(-1px);
             }
 
             [data-testid="stSidebarNav"] {
                 display: none;
-            }
-
-            [data-testid="stSidebarNav"] ul {
-                gap: 0.25rem;
-            }
-
-            [data-testid="stSidebarNav"] li a {
-                border-radius: 14px;
-                padding: 0.72rem 0.9rem;
-                transition: all 0.2s ease;
-                border: 1px solid transparent;
-                background: transparent;
-            }
-
-            [data-testid="stSidebarNav"] li a:hover {
-                background: #f8fafc;
-                border-color: var(--border);
-            }
-
-            [data-testid="stSidebarNav"] li a[aria-current="page"] {
-                background: rgba(37, 99, 235, 0.10);
-                border-color: rgba(37, 99, 235, 0.20);
-                box-shadow: inset 3px 0 0 var(--primary);
             }
 
             h1, h2, h3, h4 {
@@ -222,17 +325,18 @@ def configure_page(title: str) -> None:
             }
 
             .hero-card, .metric-card, .content-card {
-                background: var(--surface);
-                border: 1px solid var(--border);
+                background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+                border: 1.5px solid var(--border);
                 border-radius: var(--radius-lg);
                 padding: 1.1rem 1.2rem;
-                box-shadow: var(--shadow-soft);
-                transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+                box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.08);
+                transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease;
             }
 
             .hero-card:hover, .metric-card:hover, .content-card:hover {
-                transform: translateY(-2px);
-                box-shadow: var(--shadow);
+                transform: translateY(-4px);
+                box-shadow: 0 16px 40px rgba(37, 99, 235, 0.12), 0 2px 8px rgba(15, 23, 42, 0.1);
+                border-color: #bfd9f9;
             }
 
             .badge-pill, .status-chip {
@@ -282,47 +386,251 @@ def configure_page(title: str) -> None:
             .metric-card.warning { border-left: 4px solid var(--warning); }
             .metric-card.error { border-left: 4px solid var(--error); }
 
+            .quick-action-link {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                padding: 0.82rem 0.95rem;
+                margin-bottom: 0.55rem;
+                text-decoration: none !important;
+                color: #0f1f3f !important;
+                border-radius: 16px;
+                border: 1.5px solid #d9e5f6;
+                background: linear-gradient(140deg, #ffffff 0%, #f5f9ff 100%);
+                box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+                transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+            }
+
+            .quick-action-link[data-category="operacion"] {
+                border-color: #c9e2ff;
+                background: linear-gradient(140deg, #ffffff 0%, #eef6ff 100%);
+            }
+
+            .quick-action-link[data-category="analisis"] {
+                border-color: #cdecd6;
+                background: linear-gradient(140deg, #ffffff 0%, #edf9f1 100%);
+            }
+
+            .quick-action-link[data-category="administracion"] {
+                border-color: #f3dfbd;
+                background: linear-gradient(140deg, #ffffff 0%, #fff7eb 100%);
+            }
+
+            .quick-action-link:hover {
+                transform: translateY(-3px);
+                border-color: #b9d5f8;
+                box-shadow: 0 14px 30px rgba(37, 99, 235, 0.16);
+            }
+
+            .quick-action-icon {
+                width: 42px;
+                height: 42px;
+                border-radius: 12px;
+                background: linear-gradient(165deg, #e8f1ff 0%, #f7fbff 100%);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.25rem;
+                flex-shrink: 0;
+                border: 1px solid #d4e2f6;
+            }
+
+            .quick-action-link[data-category="operacion"] .quick-action-icon {
+                background: linear-gradient(165deg, #e6f2ff 0%, #f5faff 100%);
+                border-color: #c9ddf9;
+            }
+
+            .quick-action-link[data-category="analisis"] .quick-action-icon {
+                background: linear-gradient(165deg, #e7f8ee 0%, #f4fcf7 100%);
+                border-color: #c7e8d3;
+            }
+
+            .quick-action-link[data-category="administracion"] .quick-action-icon {
+                background: linear-gradient(165deg, #fff1dd 0%, #fff8ef 100%);
+                border-color: #f2d7ad;
+            }
+
+            .quick-action-content {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .quick-action-title {
+                font-size: 0.98rem;
+                font-weight: 800;
+                color: #0f1f3f;
+                line-height: 1.1;
+            }
+
+            .quick-action-subtitle {
+                margin-top: 0.2rem;
+                font-size: 0.74rem;
+                color: #64748b;
+                line-height: 1.25;
+            }
+
+            .quick-action-arrow {
+                color: #2563eb;
+                font-weight: 800;
+                font-size: 1rem;
+                opacity: 0.6;
+                transition: transform 0.28s ease, opacity 0.28s ease;
+            }
+
+            .quick-action-link[data-category="analisis"] .quick-action-arrow {
+                color: #0f9f59;
+            }
+
+            .quick-action-link[data-category="administracion"] .quick-action-arrow {
+                color: #c77a17;
+            }
+
+            .quick-action-link:hover .quick-action-arrow {
+                transform: translateX(3px);
+                opacity: 1;
+            }
+
             .stTextInput input, .stTextArea textarea, .stDateInput input, .stSelectbox div[data-baseweb="select"], .stMultiSelect div[data-baseweb="select"] {
-                background: #ffffff !important;
+                background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%) !important;
                 color: var(--text) !important;
-                border: 1px solid var(--border) !important;
+                border: 1.5px solid var(--border) !important;
                 border-radius: 14px !important;
                 min-height: 46px !important;
-                box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03) !important;
+                box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+                transition: all 0.3s ease !important;
             }
 
             .stTextInput input::placeholder, .stTextArea textarea::placeholder {
-                color: #94A3B8 !important;
+                color: #cbd5e1 !important;
+                font-weight: 500;
             }
 
             .stTextInput input:focus, .stTextArea textarea:focus {
                 border-color: var(--primary) !important;
-                box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12) !important;
+                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1), 0 0 0 1.5px var(--primary) !important;
+                background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%) !important;
+            }
+
+            .stSelectbox div[data-baseweb="select"]:focus-within,
+            .stMultiSelect div[data-baseweb="select"]:focus-within {
+                border-color: var(--primary) !important;
+                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1), 0 0 0 1.5px var(--primary) !important;
             }
 
             .stButton > button {
-                border-radius: 14px;
+                border-radius: 16px;
                 border: 1px solid transparent;
-                min-height: 44px;
+                min-height: 48px;
                 font-weight: 700;
-                transition: all 0.2s ease;
+                transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+                padding: 0.6rem 1.4rem !important;
+                letter-spacing: 0.3px;
             }
 
             .stButton > button:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 8px 20px rgba(37, 99, 235, 0.16);
+                transform: translateY(-2px);
+                box-shadow: 0 12px 32px rgba(37, 99, 235, 0.24);
+            }
+
+            .stButton > button:active {
+                transform: translateY(0px);
             }
 
             .stButton > button[kind="primary"], .stDownloadButton > button {
-                background: var(--primary);
+                background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
                 color: white;
-                border-color: var(--primary);
+                border-color: transparent;
+                box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
+            }
+
+            .stButton > button[kind="primary"]:hover, .stDownloadButton > button:hover {
+                background: linear-gradient(135deg, #1D4ED8 0%, #1e40af 100%);
             }
 
             .stButton > button[kind="secondary"] {
-                background: #ffffff;
+                background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
                 color: var(--text);
-                border-color: var(--border);
+                border-color: #e2e8f0;
+                box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+            }
+
+            .stButton > button[kind="secondary"]:hover {
+                background: linear-gradient(135deg, #f8fbff 0%, #f1f5f9 100%);
+                border-color: #cbd5e1;
+            }
+
+            .login-intro-card {
+                text-align: center;
+                margin-bottom: 0.5rem;
+                padding: 0.7rem 0.8rem 0.35rem 0.8rem;
+            }
+
+            .login-icon {
+                width: 52px;
+                height: 52px;
+                border-radius: 14px;
+                margin: 0 auto 0.45rem auto;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.35rem;
+                background: linear-gradient(160deg, #dbeafe 0%, #eff6ff 100%);
+                border: 1px solid #bfdbfe;
+                color: #1d4ed8;
+            }
+
+            [data-testid="stForm"] {
+                background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+                border: 1px solid #d8e4f4;
+                border-radius: 22px;
+                padding: 1.05rem 1rem 0.85rem 1rem;
+                box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+            }
+
+            [data-testid="stForm"] [data-testid="stFormSubmitButton"] {
+                margin-top: 0.2rem;
+            }
+
+            [data-testid="stFileUploaderDropzoneInstructions"] {
+                position: relative;
+            }
+
+            [data-testid="stFileUploaderDropzoneInstructions"] * {
+                color: transparent !important;
+                font-size: 0 !important;
+            }
+
+            [data-testid="stFileUploaderDropzoneInstructions"]::before {
+                content: "Arrastra y suelta el archivo aqui";
+                display: block;
+                font-size: 2rem;
+                font-weight: 700;
+                color: var(--text);
+                line-height: 1.2;
+            }
+
+            [data-testid="stFileUploaderDropzoneInstructions"]::after {
+                content: "Limite 200 MB por archivo";
+                display: block;
+                margin-top: 0.35rem;
+                font-size: 1.05rem;
+                color: var(--muted);
+                font-weight: 500;
+            }
+
+            [data-testid="stFileUploaderDropzone"] [data-testid="stMarkdownContainer"] p {
+                color: transparent !important;
+                font-size: 0 !important;
+            }
+
+            [data-testid="stFileUploaderDropzone"] button {
+                font-size: 0 !important;
+            }
+
+            [data-testid="stFileUploaderDropzone"] button::after {
+                content: "Buscar archivos";
+                font-size: 1.05rem;
+                font-weight: 600;
             }
 
             .stDataFrame, .stDataEditor {
@@ -355,12 +663,26 @@ def configure_page(title: str) -> None:
             }
 
             .reveal-card {
-                animation: fadeUp 0.35s ease both;
+                animation: fadeUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
             }
 
             @keyframes fadeUp {
-                from { opacity: 0; transform: translateY(10px); }
+                from { opacity: 0; transform: translateY(16px); }
                 to { opacity: 1; transform: translateY(0); }
+            }
+
+            @keyframes slideInLeft {
+                from { opacity: 0; transform: translateX(-20px); }
+                to { opacity: 1; transform: translateX(0); }
+            }
+
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
+            }
+
+            [data-testid="stForm"] {
+                animation: fadeUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
             }
 
             @media (max-width: 768px) {
@@ -380,45 +702,101 @@ def configure_page(title: str) -> None:
     )
 
 
+def get_logo_embed() -> str:
+    """Return logo as embedded base64 data URI."""
+    import base64
+    import os
+    try:
+        # Usa ruta absoluta basada en el directorio del archivo actual
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        logo_path = os.path.join(os.path.dirname(current_dir), 'assets', 'logo.png')
+        with open(logo_path, 'rb') as f:
+            logo_b64 = base64.b64encode(f.read()).decode()
+            return f'data:image/png;base64,{logo_b64}'
+    except Exception as e:
+        print(f'Error al cargar logo: {e}')
+        return ''
+
+
 def render_sidebar(user: dict | None = None) -> None:
     with st.sidebar:
-        st.markdown(
-            """
-            <div class="sidebar-shell">
-              <div class="brand-card">
-                <div style="display:flex; align-items:center; gap:0.8rem;">
-                  <div class="brand-mark">C</div>
-                  <div>
-                    <div class="brand-title">Campusly</div>
-                    <div class="brand-subtitle">Asistencia docente QR</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        if user:
+        # Mostrar logo y marca
+        try:
+            import os
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            logo_path = os.path.join(os.path.dirname(current_dir), 'assets', 'logo.png')
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    import base64
+                    logo_b64 = base64.b64encode(f.read()).decode()
+                    logo_uri = f'data:image/png;base64,{logo_b64}'
+                    st.markdown(
+                        f"""
+                        <div class="sidebar-shell" style="display:flex; align-items:center; gap:0.8rem; margin-bottom:0.5rem;">
+                          <img src="{logo_uri}" alt="Campusly" style="width:70px; height:70px; object-fit:contain; flex-shrink:0;">
+                          <div>
+                            <div class="brand-title" style="font-size: 1.4rem; margin:0;">Campusly</div>
+                            <div class="brand-subtitle">Asistencia docente</div>
+                          </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.markdown(
+                    """
+                    <div class="sidebar-shell">
+                      <div class="brand-card">
+                        <div style="display:flex; align-items:center; gap:0.8rem;">
+                          <div class="brand-mark">C</div>
+                          <div>
+                            <div class="brand-title">Campusly</div>
+                            <div class="brand-subtitle">Asistencia docente</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+        except Exception as e:
             st.markdown(
-                f"""
-                <div class="content-card reveal-card" style="margin-top:0.75rem;">
-                  <div style="font-size:12px; color: var(--muted); text-transform:uppercase; letter-spacing:0.08em; font-weight:700;">Sesión activa</div>
-                  <div style="margin-top:0.35rem; font-weight:700; color: var(--text);">{user['nombre']}</div>
-                  <div style="color: var(--muted); font-size:12px; margin-top:0.15rem;">{user['rol']}</div>
+                """
+                <div class="sidebar-shell">
+                  <div class="brand-card">
+                    <div style="display:flex; align-items:center; gap:0.8rem;">
+                      <div class="brand-mark">C</div>
+                      <div>
+                        <div class="brand-title">Campusly</div>
+                        <div class="brand-subtitle">Asistencia docente</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
-            st.markdown("### Navegación")
+        if user:
+            st.markdown(
+                f"""
+                <div class="session-card reveal-card">
+                  <div class="session-label">Sesión activa</div>
+                  <div class="session-name">{user['nombre']}</div>
+                  <div class="session-role">{user['rol']}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            st.markdown('<div class="nav-title">Navegación</div>', unsafe_allow_html=True)
             for page_path, label, icon in _allowed_sidebar_pages(user.get("rol", "")):
                 st.page_link(page_path, label=label, icon=icon, use_container_width=True)
 
         st.markdown(
             f"""
-            <div style="margin-top:1rem; padding:0.7rem 0.8rem; border:1px solid var(--border); border-radius:12px; background:#f8fafc; color:var(--muted); font-size:12px;">
-                Hecho por <strong>{APP_AUTHOR}</strong>
+            <div class="sidebar-credit">
+                Desarrollado por {APP_AUTHOR}
             </div>
             """,
             unsafe_allow_html=True,
@@ -480,7 +858,10 @@ def styled_attendance_table(df: pd.DataFrame) -> pd.io.formats.style.Styler:
 def require_login(roles: list[str] | None = None):
     user = st.session_state.get("auth_user")
     if not user:
-        st.warning("Debes iniciar sesión para continuar.")
+        try:
+            st.switch_page("app.py")
+        except Exception:
+            st.warning("Debes iniciar sesión para continuar.")
         st.stop()
     if roles and user["rol"] not in roles:
         st.error("No tienes permisos para acceder a esta sección.")
@@ -488,8 +869,15 @@ def require_login(roles: list[str] | None = None):
     return user
 
 
+def logout_and_redirect() -> None:
+    st.session_state.pop("auth_user", None)
+    st.session_state.pop("auth_token", None)
+    try:
+        st.switch_page("app.py")
+    except Exception:
+        st.rerun()
+
+
 def logout_button() -> None:
     if st.sidebar.button("Cerrar sesión", use_container_width=True):
-        st.session_state.pop("auth_user", None)
-        st.session_state.pop("auth_token", None)
-        st.rerun()
+        logout_and_redirect()

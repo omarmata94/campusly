@@ -109,10 +109,18 @@ class ScannerService:
         qr_payload: str,
         turno: str,
         numero_hora: int,
-        salon: str,
+        salon: Optional[str],
         usuario_registro: str,
     ) -> ScanResult:
-        """Registra asistencia de un docente en un turno y hora específicos."""
+        """Registra asistencia de un docente en un turno y hora específicos.
+        
+        Args:
+            qr_payload: Payload del QR del docente
+            turno: Nombre del turno
+            numero_hora: Número de la hora clase
+            salon: Salón específico (opcional, para prefectos se puede pasar None)
+            usuario_registro: Usuario que registra la asistencia
+        """
         qr_uuid = ScannerService._normalize_payload(qr_payload)
         today = today_local()
         current_time = current_time_local()
@@ -136,21 +144,39 @@ class ScannerService:
             if not hora_clase:
                 return ScanResult(success=False, message="Hora clase no encontrada")
 
-            # Validar que el docente esté asignado a este turno, hora y salón
-            docente_hora = session.scalar(
-                select(DocenteHoraClase).where(
-                    DocenteHoraClase.docente_id == docente.id,
-                    DocenteHoraClase.hora_clase_id == hora_clase.id,
-                    DocenteHoraClase.salon == salon,
-                    DocenteHoraClase.dia_semana == day_of_week,
+            # Validar que el docente esté asignado a este turno y hora
+            # Si salon es None (prefecto), buscar sin validar salón
+            if salon is None:
+                # Prefecto: no valida salón, solo turno y hora
+                docente_hora = session.scalar(
+                    select(DocenteHoraClase).where(
+                        DocenteHoraClase.docente_id == docente.id,
+                        DocenteHoraClase.hora_clase_id == hora_clase.id,
+                        DocenteHoraClase.dia_semana == day_of_week,
+                    )
                 )
-            )
-            if not docente_hora:
-                return ScanResult(
-                    success=False,
-                    message=f"El docente no está asignado a {turno} - Hora {numero_hora} - Salón {salon}",
-                    docente=docente,
+                if not docente_hora:
+                    return ScanResult(
+                        success=False,
+                        message=f"El docente no está asignado a {turno} - Hora {numero_hora}",
+                        docente=docente,
+                    )
+            else:
+                # Administrador: valida turno, hora y salón específico
+                docente_hora = session.scalar(
+                    select(DocenteHoraClase).where(
+                        DocenteHoraClase.docente_id == docente.id,
+                        DocenteHoraClase.hora_clase_id == hora_clase.id,
+                        DocenteHoraClase.salon == salon,
+                        DocenteHoraClase.dia_semana == day_of_week,
+                    )
                 )
+                if not docente_hora:
+                    return ScanResult(
+                        success=False,
+                        message=f"El docente no está asignado a {turno} - Hora {numero_hora} - Salón {salon}",
+                        docente=docente,
+                    )
 
             # Verificar asistencia duplicada (mismo día, misma hora clase)
             existing = session.scalar(
@@ -179,7 +205,7 @@ class ScannerService:
                 hora=current_time,
                 turno=turno,
                 numero_hora=numero_hora,
-                salon=salon,
+                salon=salon if salon else docente_hora.salon,  # Usar salon del docente si no se especifica
                 grupo=docente_hora.grupo,
                 estatus=estatus,
                 usuario_registro=usuario_registro,

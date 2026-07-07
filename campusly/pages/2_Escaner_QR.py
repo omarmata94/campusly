@@ -82,9 +82,14 @@ def main() -> None:
         st.warning(f"No hay docentes asignados a {turno_nombre} - {hora_label} en esta fecha.")
         st.stop()
 
-    salon = st.selectbox("Salón", sorted(salones), key="salon_select")
-
-    st.info(f"Escaneando QR para: **{turno_nombre}** - **{hora_label}** - **Salón {salon}**")
+    # Solo administradores seleccionan salón, los prefectos no lo especifican
+    if user["rol"] == "Administrador":
+        salon = st.selectbox("Salón", sorted(salones), key="salon_select")
+        st.info(f"Escaneando QR para: **{turno_nombre}** - **{hora_label}** - **Salón {salon}**")
+    else:
+        # Prefectos: no especifican salón
+        salon = None
+        st.info(f"Escaneando QR para: **{turno_nombre}** - **{hora_label}** (sin validación de salón)")
 
     # Captura de cámara
     camera = st.camera_input("Activar cámara", label_visibility="visible")
@@ -120,17 +125,18 @@ def main() -> None:
 
         if result.success:
             st.success("✅ Asistencia registrada correctamente")
-            st.write(
-                {
-                    "docente": result.docente.nombre if result.docente else None,
-                    "turno": result.asistencia.turno if result.asistencia else None,
-                    "hora": result.asistencia.numero_hora if result.asistencia else None,
-                    "salón": result.asistencia.salon if result.asistencia else None,
-                    "grupo": result.asistencia.grupo if result.asistencia else None,
-                    "estatus": result.asistencia.estatus if result.asistencia else None,
-                    "hora_registro": str(result.asistencia.hora) if result.asistencia else None,
-                }
-            )
+            display_data = {
+                "docente": result.docente.nombre if result.docente else None,
+                "turno": result.asistencia.turno if result.asistencia else None,
+                "hora": result.asistencia.numero_hora if result.asistencia else None,
+                "estatus": result.asistencia.estatus if result.asistencia else None,
+                "hora_registro": str(result.asistencia.hora) if result.asistencia else None,
+            }
+            # Solo mostrar salón y grupo si el usuario es administrador
+            if user["rol"] == "Administrador":
+                display_data["salón"] = result.asistencia.salon if result.asistencia else None
+                display_data["grupo"] = result.asistencia.grupo if result.asistencia else None
+            st.write(display_data)
         else:
             st.error(f"❌ {result.message}")
 

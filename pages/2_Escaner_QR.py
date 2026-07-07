@@ -82,12 +82,34 @@ def main() -> None:
         st.warning(f"No hay docentes asignados a {turno_nombre} - {hora_label} en esta fecha.")
         st.stop()
 
-    salon = st.selectbox("Salón", sorted(salones), key="salon_select")
+    # Solo administradores seleccionan salón, los prefectos no lo especifican
+    if user["rol"] == "Administrador":
+        salon = st.selectbox("Salón", sorted(salones), key="salon_select")
+        st.info(f"Escaneando QR para: **{turno_nombre}** - **{hora_label}** - **Salón {salon}**")
+    else:
+        # Prefectos: no especifican salón
+        salon = None
+        st.info(f"Escaneando QR para: **{turno_nombre}** - **{hora_label}** (sin validación de salón)")
 
-    st.info(f"Escaneando QR para: **{turno_nombre}** - **{hora_label}** - **Salón {salon}**")
+    if "scanner_camera_enabled" not in st.session_state:
+        st.session_state["scanner_camera_enabled"] = False
+
+    # Activación explícita de cámara para forzar el prompt de permisos por interacción del usuario
+    activate_col, reset_col = st.columns([1, 1])
+    with activate_col:
+        if st.button("Activar cámara", use_container_width=True):
+            st.session_state["scanner_camera_enabled"] = True
+    with reset_col:
+        if st.session_state["scanner_camera_enabled"] and st.button("Desactivar cámara", use_container_width=True):
+            st.session_state["scanner_camera_enabled"] = False
+            st.rerun()
+
+    if not st.session_state["scanner_camera_enabled"]:
+        st.info("Presiona 'Activar cámara' para solicitar permisos y comenzar el escaneo.")
+        st.stop()
 
     # Captura de cámara
-    camera = st.camera_input("Activar cámara", label_visibility="visible")
+    camera = st.camera_input("Cámara activa", label_visibility="visible")
 
     if camera is None:
         st.stop()
@@ -120,17 +142,18 @@ def main() -> None:
 
         if result.success:
             st.success("✅ Asistencia registrada correctamente")
-            st.write(
-                {
-                    "docente": result.docente.nombre if result.docente else None,
-                    "turno": result.asistencia.turno if result.asistencia else None,
-                    "hora": result.asistencia.numero_hora if result.asistencia else None,
-                    "salón": result.asistencia.salon if result.asistencia else None,
-                    "grupo": result.asistencia.grupo if result.asistencia else None,
-                    "estatus": result.asistencia.estatus if result.asistencia else None,
-                    "hora_registro": str(result.asistencia.hora) if result.asistencia else None,
-                }
-            )
+            display_data = {
+                "docente": result.docente.nombre if result.docente else None,
+                "turno": result.asistencia.turno if result.asistencia else None,
+                "hora": result.asistencia.numero_hora if result.asistencia else None,
+                "estatus": result.asistencia.estatus if result.asistencia else None,
+                "hora_registro": str(result.asistencia.hora) if result.asistencia else None,
+            }
+            # Solo mostrar salón y grupo si el usuario es administrador
+            if user["rol"] == "Administrador":
+                display_data["salón"] = result.asistencia.salon if result.asistencia else None
+                display_data["grupo"] = result.asistencia.grupo if result.asistencia else None
+            st.write(display_data)
         else:
             st.error(f"❌ {result.message}")
 

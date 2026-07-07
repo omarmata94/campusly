@@ -12,6 +12,7 @@ import uuid
 import sqlite3
 import shutil
 from datetime import datetime
+from collections import defaultdict
 import streamlit as st
 
 from database.db import DB_PATH, init_db, get_session
@@ -38,28 +39,29 @@ def main() -> None:
         st.markdown("""
         ### 📋 Cómo funciona
         
-        1. **Descarga tu horario en PDF** desde el sistema de la universidad
-        2. **Carga el archivo PDF** en esta página
-        3. El sistema extrae automáticamente:
+        1. **Carga el archivo PDF** en esta página
+        2. El sistema extrae automáticamente:
            - Tu nombre
            - Turno (Matutino/Nocturno)
            - Todas tus clases, salones y grupos
-        4. **Revisa la vista previa** y confirma la importación
+        3. **Revisa la vista previa** y confirma la importación
         
         ### ✅ Requisitos del PDF
         
         - Debe ser un PDF generado por **aSc Horarios**
-        - Debe incluir tu nombre y turno
-        - Debe contener la tabla con tus clases
+        - Debe incluir nombre y turno
+        - Debe contener la tabla con las clases
         
         ### 📝 Notas importantes
         
-        - Si trabajas en **ambos turnos**, carga primero el Matutino y luego el Nocturno
+        - Si se trabaja en **ambos turnos**, carga primero el Matutino y luego el Nocturno
         - Cada turno se importará por separado
         - Puedes cargar nuevamente para actualizar tus horarios
         """)
 
     _render_admin_reset_section(user)
+
+    _render_bulk_upload_section()
 
     # Sección de carga de archivo
     st.markdown("### Seleccionar Archivo")
@@ -196,6 +198,154 @@ def main() -> None:
             os.unlink(tmp_path)
         except:
             pass
+
+
+def _render_bulk_upload_section() -> None:
+    """Sección para importar múltiples PDFs en una sola operación."""
+    st.markdown("### 🚀 Carga masiva de horarios")
+    st.caption("Importa en un solo paso los PDFs de maestros matutinos y nocturnos.")
+
+    bulk_files = st.file_uploader(
+        "Selecciona todos los PDFs de horarios",
+        type=["pdf"],
+        accept_multiple_files=True,
+        key="bulk_pdf_upload",
+        help="Puedes seleccionar varios archivos PDF al mismo tiempo",
+    )
+
+    clear_existing_bulk = st.checkbox(
+        "🗑️ Limpiar horarios previos por docente y turno antes de importar",
+        key="bulk_clear_existing",
+        help="Recomendado cuando se trata de una actualización general de horarios",
+    )
+
+    if not bulk_files:
+        st.info("Carga varios PDFs para habilitar la importación masiva.")
+        st.divider()
+        return
+
+    st.info(f"Se detectaron {len(bulk_files)} archivos listos para importar.")
+    if st.button("✅ Ejecutar carga masiva", type="primary", use_container_width=True, key="run_bulk_import"):
+        with st.spinner("⏳ Procesando carga masiva..."):
+            summary = _process_bulk_pdf_upload(bulk_files, clear_existing_bulk)
+
+        if summary["processed_files"] == 0:
+            st.error("No se pudo procesar ningún archivo.")
+            st.divider()
+            return
+
+        if summary["failed_files"] == 0:
+            st.success("✅ Carga masiva completada sin errores")
+            st.balloons()
+        else:
+            st.warning("⚠️ Carga masiva completada con algunos errores")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("📄 PDFs procesados", summary["processed_files"])
+        with col2:
+            st.metric("✅ PDFs importados", summary["successful_files"])
+        with col3:
+            st.metric("❌ PDFs con error", summary["failed_files"])
+
+        col4, col5, col6 = st.columns(3)
+        with col4:
+            st.metric("📚 Registros importados", summary["imported_records"])
+        with col5:
+            st.metric("⏭️ Registros omitidos", summary["skipped_records"])
+        with col6:
+            st.metric("🌅 Matutino / 🌙 Nocturno", f"{summary['matutino_files']} / {summary['nocturno_files']}")
+
+        if summary["errors"]:
+            with st.expander("📋 Ver errores de la carga masiva"):
+                for error in summary["errors"][:200]:
+                    st.error(f"  • {error}")
+
+    st.divider()
+
+
+def _process_bulk_pdf_upload(files, clear_existing: bool) -> dict:
+    """Procesa múltiples PDFs y devuelve métricas consolidadas de importación."""
+    processed_files = 0
+    successful_files = 0
+    failed_files = 0
+    imported_records = 0
+    skipped_records = 0
+    turno_counter = defaultdict(int)
+    errors: list[str] = []
+
+    progress = st.progress(0.0)
+    total_files = len(files)
+
+    for index, uploaded_file in enumerate(files, start=1):
+        tmp_path = ""
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                tmp_file.write(uploaded_file.getbuffer())
+                tmp_path = tmp_file.name
+
+            service = PDFHorarioImportService()
+            result = service.import_from_pdf(tmp_path)
+
+            if not result.success:
+                failed_files += 1
+                errors.append(f"{uploaded_file.name}: {result.message}")
+                for detail in result.errors or []:
+                    errors.append(f"{uploaded_file.name}: {detail}")
+                continue
+
+            success_entries, entries, extraction_errors = service.extractor.extract_from_pdf(tmp_path)
+            if not success_entries or not entries:
+                failed_files += 1
+                errors.append(f"{uploaded_file.name}: No se pudieron extraer entradas para importar")
+                for detail in extraction_errors or []:
+                    errors.append(f"{uploaded_file.name}: {detail}")
+                continue
+
+            import_result = _import_to_db(result, entries, clear_existing)
+            if not import_result.get("success"):
+                failed_files += 1
+                errors.append(f"{uploaded_file.name}: {import_result.get('message', 'Error de importación')}")
+                for detail in import_result.get("errors", []):
+                    errors.append(f"{uploaded_file.name}: {detail}")
+                continue
+
+            successful_files += 1
+            imported_records += import_result.get("imported_count", 0)
+            skipped_records += import_result.get("skipped_count", 0)
+
+            turno = (result.turno or "").strip().lower()
+            if "matutino" in turno:
+                turno_counter["matutino"] += 1
+            elif "nocturno" in turno:
+                turno_counter["nocturno"] += 1
+
+            for detail in import_result.get("errors", []):
+                errors.append(f"{uploaded_file.name}: {detail}")
+
+        except Exception as exc:
+            failed_files += 1
+            errors.append(f"{uploaded_file.name}: {exc}")
+        finally:
+            processed_files += 1
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
+
+            progress.progress(index / total_files)
+
+    return {
+        "processed_files": processed_files,
+        "successful_files": successful_files,
+        "failed_files": failed_files,
+        "imported_records": imported_records,
+        "skipped_records": skipped_records,
+        "matutino_files": turno_counter["matutino"],
+        "nocturno_files": turno_counter["nocturno"],
+        "errors": errors,
+    }
 
 
 def _render_admin_reset_section(user: dict) -> None:
