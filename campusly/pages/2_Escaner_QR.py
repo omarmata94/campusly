@@ -7,6 +7,7 @@ from sqlalchemy import select
 from database.db import get_session, init_db
 from database.models import Docente, DocenteHoraClase, HoraClase, Turno
 from services.scanner import ScannerService
+from services.scanner_camera import rear_camera_input
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar
 
 
@@ -91,34 +92,11 @@ def main() -> None:
         salon = None
         st.info(f"Escaneando QR para: **{turno_nombre}** - **{hora_label}** (sin validación de salón)")
 
-    # Forzar cámara trasera sobreescribiendo la restricción de getUserMedia
-    st.markdown(
-        """
-        <script>
-        (function() {
-            const _gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-            navigator.mediaDevices.getUserMedia = function(constraints) {
-                if (constraints && constraints.video) {
-                    const v = typeof constraints.video === 'object' ? constraints.video : {};
-                    v.facingMode = { ideal: 'environment' };
-                    constraints.video = v;
-                }
-                return _gum(constraints);
-            };
-        })();
-        </script>
-        """,
-        unsafe_allow_html=True,
-    )
+    # Componente personalizado con cámara trasera nativa
+    image = rear_camera_input(key="escaner_qr")
 
-    # Captura de cámara
-    camera = st.camera_input("Activar cámara", label_visibility="visible")
-
-    if camera is None:
+    if image is None:
         st.stop()
-
-    image = Image.open(camera)
-    st.image(image, caption="Imagen capturada", use_container_width=True)
 
     payload = ScannerService.decode_qr_from_image(image)
 
