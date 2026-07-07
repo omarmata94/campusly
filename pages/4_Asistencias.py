@@ -42,7 +42,7 @@ def main() -> None:
 
         docente_options = ["Todos"] + (docentes_df["nombre"].tolist() if not docentes_df.empty else [])
         departamento_options = ["Todos"] + sorted(docentes_df["departamento"].dropna().unique().tolist()) if not docentes_df.empty else ["Todos"]
-        estatus_options = ["Todos", "Puntual", "Retardo", "Falta"]
+        estatus_options = ["Todos", "Asistencia"]
 
         c3, c4 = st.columns(2)
         docente_label = c3.selectbox("Docente", docente_options)

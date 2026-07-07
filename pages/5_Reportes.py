@@ -20,6 +20,8 @@ def _period_dates(periodo: str) -> tuple[date, date]:
 
 
 def main() -> None:
+    from database.db import init_db
+    init_db()
     configure_page(f"{APP_NAME} | Reportes")
     user = require_login(["Administrador", "Prefecto"])
 
@@ -35,25 +37,28 @@ def main() -> None:
     df = ReportService.fetch_attendances(filters)
 
     st.markdown(f"**Periodo:** {fecha_inicio.isoformat()} a {fecha_fin.isoformat()}")
-    st.dataframe(styled_attendance_table(df), use_container_width=True)
 
-    c1, c2 = st.columns(2)
-    csv_data = ReportService.export_csv(df)
-    excel_data = ReportService.export_excel(df)
-    c1.download_button(
-        "Exportar CSV",
-        data=csv_data,
-        file_name=f"reporte_{periodo.lower()}.csv",
-        mime="text/csv",
-        use_container_width=True,
-    )
-    c2.download_button(
-        "Exportar Excel",
-        data=excel_data,
-        file_name=f"reporte_{periodo.lower()}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
-    )
+    if df.empty:
+        st.info("No hay registros de asistencia en el periodo seleccionado.")
+    else:
+        st.dataframe(styled_attendance_table(df), use_container_width=True)
+        c1, c2 = st.columns(2)
+        csv_data = ReportService.export_csv(df)
+        excel_data = ReportService.export_excel(df)
+        c1.download_button(
+            "Exportar CSV",
+            data=csv_data,
+            file_name=f"reporte_{periodo.lower()}.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+        c2.download_button(
+            "Exportar Excel",
+            data=excel_data,
+            file_name=f"reporte_{periodo.lower()}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
 
 
 if __name__ == "__main__":

@@ -20,6 +20,8 @@ def _metrics_to_columns(metrics: dict[str, int]) -> None:
 
 
 def main() -> None:
+    from database.db import init_db
+    init_db()
     configure_page(f"{APP_NAME} | Tablero")
     user = require_login(["Administrador", "Prefecto"])
 
