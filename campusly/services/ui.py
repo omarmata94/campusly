@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from textwrap import dedent
+
 import pandas as pd
 import streamlit as st
 
@@ -577,14 +579,16 @@ def configure_page(title: str) -> None:
     st.set_page_config(page_title=title, page_icon="🎓", layout="wide", initial_sidebar_state="expanded")
     _init_theme()
     st.markdown(
-        f"""
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-        <style>
+        dedent(
+            f"""
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+            <style>
             {_get_theme_css()}
-        </style>
-        """,
+            </style>
+            """
+        ),
         unsafe_allow_html=True,
     )
 
