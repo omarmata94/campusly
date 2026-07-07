@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 from sqlalchemy import func, select
+from sqlalchemy.exc import OperationalError
 
 from database.db import get_session, has_users, init_db
 from database.models import Asistencia, Docente, DocenteHoraClase
@@ -94,18 +95,22 @@ def _home_totals() -> dict[str, int | str]:
         docentes_con_horario = session.scalar(
             select(func.count(func.distinct(DocenteHoraClase.docente_id)))
         ) or 0
-        ultimo_registro = session.execute(
-            select(
-                Asistencia.fecha,
-                Asistencia.hora,
-                Docente.nombre,
-                Docente.apellidos,
-                Asistencia.turno,
-            )
-            .join(Docente, Asistencia.docente_id == Docente.id)
-            .order_by(Asistencia.fecha.desc(), Asistencia.hora.desc())
-            .limit(1)
-        ).mappings().first()
+        try:
+            ultimo_registro = session.execute(
+                select(
+                    Asistencia.fecha,
+                    Asistencia.hora,
+                    Docente.nombre,
+                    Docente.apellidos,
+                    Asistencia.turno,
+                )
+                .join(Docente, Asistencia.docente_id == Docente.id)
+                .order_by(Asistencia.fecha.desc(), Asistencia.hora.desc())
+                .limit(1)
+            ).mappings().first()
+        except OperationalError:
+            # Evita caída del inicio si la base en deploy quedó con esquema inconsistente.
+            ultimo_registro = None
 
     ultimo_texto = "Sin escaneos aún"
     if ultimo_registro:

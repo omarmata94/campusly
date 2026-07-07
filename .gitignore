@@ -1,0 +1,20 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual env and local settings
+.venv/
+.streamlit/secrets.toml
+
+# Runtime/generated app data
+*.db
+data/campusly.db
+campusly/data/campusly.db
+data/badges/
+campusly/data/badges/
+data/backups/
+campusly/data/backups/
+data/uploads/
+campusly/data/uploads/
+assets/qrs/
+campusly/assets/qrs/
