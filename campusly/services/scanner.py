@@ -92,20 +92,8 @@ class ScannerService:
 
     @staticmethod
     def calculate_status(hora_clase_inicio: time, hora_clase_fin: time, hora_actual: time) -> str:
-        """Calcula el estatus considerando la ventana completa de la hora clase."""
-        local_today = today_local()
-        entrada_dt = datetime.combine(local_today, hora_clase_inicio)
-        fin_dt = datetime.combine(local_today, hora_clase_fin)
-        actual_dt = datetime.combine(local_today, hora_actual)
-        delta_minutes = int((actual_dt - entrada_dt).total_seconds() // 60)
-
-        if delta_minutes <= 5:
-            return "Puntual"
-        if 6 <= delta_minutes <= 15:
-            return "Retardo"
-        if actual_dt <= fin_dt:
-            return "Retardo"
-        return "Falta"
+        """Normaliza el estatus de registro a una sola categoría operativa."""
+        return "Asistencia"
 
     @staticmethod
     def register_attendance(
