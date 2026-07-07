@@ -8,6 +8,94 @@ APP_NAME = "Sistema de Asistencia Docente mediante QR"
 APP_AUTHOR = "Ing. Omar Mata"
 
 
+def _init_theme() -> None:
+    """Inicializa el sistema de temas."""
+    if "theme_mode" not in st.session_state:
+        st.session_state.theme_mode = "light"
+
+
+def _get_theme_css() -> str:
+    """Retorna el CSS para el tema actual (light o dark)."""
+    is_dark = st.session_state.get("theme_mode", "light") == "dark"
+    
+    if is_dark:
+        # Variables para tema oscuro
+        theme_vars = """
+            :root {
+                --bg: #0F1419;
+                --surface: #1A1F2E;
+                --surface-2: #242B3C;
+                --text: #E8ECEF;
+                --muted: #A0A9B8;
+                --border: #3A4657;
+                --primary: #3B82F6;
+                --primary-strong: #60A5FA;
+                --success: #10B981;
+                --warning: #F59E0B;
+                --error: #EF4444;
+                --shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+                --shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.3);
+                --radius-lg: 22px;
+                --radius-md: 16px;
+                --radius-sm: 12px;
+            }
+        """
+    else:
+        # Variables para tema claro (original)
+        theme_vars = """
+            :root {
+                --bg: #F8FAFC;
+                --surface: #FFFFFF;
+                --surface-2: #F1F5F9;
+                --text: #0F172A;
+                --muted: #64748B;
+                --border: #E2E8F0;
+                --primary: #2563EB;
+                --primary-strong: #1D4ED8;
+                --success: #10B981;
+                --warning: #F59E0B;
+                --error: #EF4444;
+                --shadow: 0 10px 30px rgba(15, 23, 42, 0.07);
+                --shadow-soft: 0 6px 18px rgba(15, 23, 42, 0.05);
+                --radius-lg: 22px;
+                --radius-md: 16px;
+                --radius-sm: 12px;
+            }
+        """
+    
+    # Resto del CSS (igual al archivo principal)
+    return f"""{theme_vars}
+        html, body, [class*="css"] {{
+            font-family: "Inter", sans-serif;
+        }}
+        .stApp {{
+            background: var(--bg);
+            color: var(--text);
+        }}
+        .stDataFrame {{
+            background: {'rgba(26, 31, 46, 0.7)' if is_dark else 'white'} !important;
+        }}
+        [data-testid="stDataFrame"] th {{
+            background: {'rgba(58, 70, 87, 0.5)' if is_dark else '#f8fafc'} !important;
+            color: var(--text) !important;
+        }}
+        [data-testid="stDataFrame"] td {{
+            color: var(--text) !important;
+            background: {'rgba(26, 31, 46, 0.7)' if is_dark else 'white'} !important;
+        }}
+        [data-testid="stDataFrame"] tr:hover {{
+            background: {'rgba(59, 130, 246, 0.1)' if is_dark else '#f1f5f9'} !important;
+        }}
+    """
+
+
+def toggle_theme() -> None:
+    """Alterna entre tema claro y oscuro."""
+    current = st.session_state.get("theme_mode", "light")
+    st.session_state.theme_mode = "dark" if current == "light" else "light"
+    st.rerun()
+
+
 def _allowed_sidebar_pages(role: str) -> list[tuple[str, str, str]]:
     all_pages = [
         ("app.py", "Inicio", "🏠"),
@@ -35,15 +123,20 @@ def _allowed_sidebar_pages(role: str) -> list[tuple[str, str, str]]:
 
 
 def configure_page(title: str) -> None:
+    """Configura la página con tema dinámico (light/dark)."""
     st.set_page_config(page_title=title, page_icon="🎓", layout="wide", initial_sidebar_state="expanded")
+    _init_theme()
     st.markdown(
-        """
+        f"""
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
-            :root {
-                --bg: #F8FAFC;
+            {_get_theme_css()}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
                 --surface: #FFFFFF;
                 --surface-2: #F1F5F9;
                 --text: #0F172A;
