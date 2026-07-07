@@ -91,6 +91,26 @@ def main() -> None:
         salon = None
         st.info(f"Escaneando QR para: **{turno_nombre}** - **{hora_label}** (sin validación de salón)")
 
+    # Forzar cámara trasera sobreescribiendo la restricción de getUserMedia
+    st.markdown(
+        """
+        <script>
+        (function() {
+            const _gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+            navigator.mediaDevices.getUserMedia = function(constraints) {
+                if (constraints && constraints.video) {
+                    const v = typeof constraints.video === 'object' ? constraints.video : {};
+                    v.facingMode = { ideal: 'environment' };
+                    constraints.video = v;
+                }
+                return _gum(constraints);
+            };
+        })();
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
+
     # Captura de cámara
     camera = st.camera_input("Activar cámara", label_visibility="visible")
 

@@ -108,6 +108,26 @@ def main() -> None:
         st.info("Presiona 'Activar cámara' para solicitar permisos y comenzar el escaneo.")
         st.stop()
 
+    # Forzar cámara trasera sobreescribiendo la restricción de getUserMedia
+    st.markdown(
+        """
+        <script>
+        (function() {
+            const _gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+            navigator.mediaDevices.getUserMedia = function(constraints) {
+                if (constraints && constraints.video) {
+                    const v = typeof constraints.video === 'object' ? constraints.video : {};
+                    v.facingMode = { ideal: 'environment' };
+                    constraints.video = v;
+                }
+                return _gum(constraints);
+            };
+        })();
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
+
     # Captura de cámara
     camera = st.camera_input("Cámara activa", label_visibility="visible")
 
