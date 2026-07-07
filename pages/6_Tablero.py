@@ -19,6 +19,36 @@ def _metrics_to_columns(metrics: dict[str, int]) -> None:
     c4.markdown(metric_card("Ausentes", metrics["ausentes"], "Pendientes del día", "error"), unsafe_allow_html=True)
 
 
+@st.cache_data(ttl=300)
+def _get_summary_metrics() -> dict[str, int]:
+    """Obtiene métricas de resumen con caché de 5 minutos."""
+    return ReportService.summary_totals()
+
+
+@st.cache_data(ttl=300)
+def _get_daily_summary(start_date: date, end_date: date):
+    """Obtiene resumen diario con caché."""
+    return ReportService.daily_summary(start_date, end_date)
+
+
+@st.cache_data(ttl=300)
+def _get_department_summary(start_date: date, end_date: date):
+    """Obtiene resumen por departamento con caché."""
+    return ReportService.department_summary(start_date, end_date)
+
+
+@st.cache_data(ttl=300)
+def _get_monthly_trend(year: int):
+    """Obtiene tendencia mensual con caché."""
+    return ReportService.monthly_trend(year)
+
+
+@st.cache_data(ttl=300)
+def _get_latest_records(limit: int = 8):
+    """Obtiene últimos registros con caché."""
+    return ReportService.latest_records(limit=limit)
+
+
 def main() -> None:
     from database.db import init_db
     init_db()
@@ -30,15 +60,15 @@ def main() -> None:
 
     page_hero("Tablero", "Resumen ejecutivo de asistencia docente con métricas, tendencias y últimos registros.")
 
-    metrics = ReportService.summary_totals()
+    metrics = _get_summary_metrics()
     _metrics_to_columns(metrics)
 
     end_date = today_local()
     start_date = end_date - timedelta(days=6)
-    daily_df = ReportService.daily_summary(start_date, end_date)
-    department_df = ReportService.department_summary(start_date, end_date)
-    monthly_df = ReportService.monthly_trend(end_date.year)
-    latest_df = ReportService.latest_records(limit=8)
+    daily_df = _get_daily_summary(start_date, end_date)
+    department_df = _get_department_summary(start_date, end_date)
+    monthly_df = _get_monthly_trend(end_date.year)
+    latest_df = _get_latest_records(limit=8)
 
     c1, c2 = st.columns(2)
     with c1:

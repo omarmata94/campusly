@@ -29,6 +29,21 @@ class HorarioImportService:
     """Servicio para importar horarios de docentes desde archivos."""
 
     @staticmethod
+    def _has_schedule_conflict(
+        session, docente_id: int, turno_id: int, numero_hora: int, dia_semana: int
+    ) -> bool:
+        """Verifica si el docente ya tiene una clase en ese horario/día."""
+        existing = session.scalar(
+            select(DocenteHoraClase).where(
+                DocenteHoraClase.docente_id == docente_id,
+                DocenteHoraClase.turno_id == turno_id,
+                DocenteHoraClase.numero_hora == numero_hora,
+                DocenteHoraClase.dia_semana == dia_semana,
+            )
+        )
+        return existing is not None
+
+    @staticmethod
     def validate_file(file_content: bytes) -> tuple[bool, str]:
         """Valida que el archivo sea CSV válido."""
         try:
@@ -118,7 +133,7 @@ class HorarioImportService:
                         skipped_count += 1
                         continue
 
-                    # Verificar si ya existe
+                    # Verificar si ya existe exactamente
                     existing = session.scalar(
                         select(DocenteHoraClase).where(
                             DocenteHoraClase.docente_id == docente.id,
@@ -130,6 +145,17 @@ class HorarioImportService:
                     )
 
                     if existing:
+                        skipped_count += 1
+                        continue
+
+                    # Verificar conflictos horarios (misma hora/día)
+                    if HorarioImportService._has_schedule_conflict(
+                        session, docente.id, turno.id, numero_hora, dia_numero
+                    ):
+                        errors.append(
+                            f"Conflicto: {docente.nombre} ya tiene clase en Hora {numero_hora} "
+                            f"el {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'][dia_numero]}"
+                        )
                         skipped_count += 1
                         continue
 

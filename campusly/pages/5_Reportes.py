@@ -19,6 +19,13 @@ def _period_dates(periodo: str) -> tuple[date, date]:
     return today.replace(day=1), today
 
 
+@st.cache_data(ttl=300)
+def _get_attendance_data(fecha_inicio: date, fecha_fin: date) -> pd.DataFrame:
+    """Obtiene datos de asistencia con caché de 5 minutos."""
+    filters = AttendanceFilters(fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
+    return ReportService.fetch_attendances(filters)
+
+
 def main() -> None:
     from database.db import init_db
     init_db()
@@ -33,8 +40,7 @@ def main() -> None:
     periodo = st.radio("Tipo de reporte", ["Diario", "Semanal", "Mensual"], horizontal=True)
     fecha_inicio, fecha_fin = _period_dates(periodo)
 
-    filters = AttendanceFilters(fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
-    df = ReportService.fetch_attendances(filters)
+    df = _get_attendance_data(fecha_inicio, fecha_fin)
 
     st.markdown(f"**Periodo:** {fecha_inicio.isoformat()} a {fecha_fin.isoformat()}")
 
