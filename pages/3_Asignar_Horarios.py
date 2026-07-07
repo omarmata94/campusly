@@ -9,6 +9,7 @@ from database.models import Docente, Turno, HoraClase, DocenteHoraClase
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar
 
 
+@st.cache_data(ttl=3600)
 def _get_docentes() -> dict[str, int]:
     """Obtiene docentes activos."""
     with get_session() as session:
@@ -20,6 +21,7 @@ def _get_docentes() -> dict[str, int]:
         return {f"{d.numero_empleado} - {d.nombre} {d.apellidos}".strip(): d.id for d in docentes}
 
 
+@st.cache_data(ttl=3600)
 def _get_turnos() -> dict[str, int]:
     """Obtiene turnos disponibles."""
     with get_session() as session:
@@ -27,6 +29,7 @@ def _get_turnos() -> dict[str, int]:
         return {t.nombre: t.id for t in turnos}
 
 
+@st.cache_data(ttl=3600)
 def _get_horas_clase(turno_id: int) -> dict[str, int]:
     """Obtiene horas clase para un turno."""
     with get_session() as session:
@@ -39,27 +42,26 @@ def _get_horas_clase(turno_id: int) -> dict[str, int]:
 
 
 def _get_existing_assignments(docente_id: int) -> list[dict]:
-    """Obtiene asignaciones existentes de un docente."""
+    """Obtiene asignaciones existentes de un docente con JOIN para evitar N+1."""
     with get_session() as session:
         assignments = session.execute(
-            select(DocenteHoraClase)
+            select(DocenteHoraClase, Turno.nombre)
+            .join(Turno, DocenteHoraClase.turno_id == Turno.id)
             .where(DocenteHoraClase.docente_id == docente_id)
             .order_by(DocenteHoraClase.turno_id, DocenteHoraClase.numero_hora)
-        ).scalars().all()
+        ).all()
         
         result = []
-        for a in assignments:
-            with get_session() as s2:
-                turno = s2.get(Turno, a.turno_id)
-                dia_semana_names = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
-                result.append({
-                    "id": a.id,
-                    "turno": turno.nombre if turno else "N/A",
-                    "hora": a.numero_hora,
-                    "salon": a.salon,
-                    "grupo": a.grupo,
-                    "dia_semana": dia_semana_names[a.dia_semana] if a.dia_semana < 5 else "Sábado",
-                })
+        dia_semana_names = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+        for a, turno_nombre in assignments:
+            result.append({
+                "id": a.id,
+                "turno": turno_nombre or "N/A",
+                "hora": a.numero_hora,
+                "salon": a.salon,
+                "grupo": a.grupo,
+                "dia_semana": dia_semana_names[a.dia_semana] if a.dia_semana < 5 else "Sábado",
+            })
         return result
 
 
