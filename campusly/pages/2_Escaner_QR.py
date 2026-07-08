@@ -47,6 +47,23 @@ def _get_salones_for_turno_hora(turno_id: int, numero_hora: int) -> set[str]:
         return set(salones)
 
 
+def _detect_hora_clase_automatica(turno_nombre: str, hora_referencia):
+    """Detecta hora clase con fallback local para evitar fallas por caché de módulos."""
+    if hasattr(ScannerService, "detect_hora_clase_by_time"):
+        return ScannerService.detect_hora_clase_by_time(turno_nombre, hora_referencia)
+
+    with get_session() as session:
+        horas = session.execute(
+            select(HoraClase)
+            .where(HoraClase.turno.has(nombre=turno_nombre))
+            .order_by(HoraClase.numero)
+        ).scalars().all()
+        for hora_clase in horas:
+            if hora_clase.hora_inicio <= hora_referencia < hora_clase.hora_fin:
+                return hora_clase
+    return None
+
+
 def main() -> None:
     init_db()
     configure_page(f"{APP_NAME} | Escáner QR")
@@ -87,12 +104,12 @@ def main() -> None:
     if modo_hora == "Automático":
         fuente_hora = st.radio(
             "Fuente de hora",
-            ["Servidor", "Dispositivo"],
+            ["Servidor", "Dispositivo (manual)"],
             horizontal=True,
             help="Servidor usa la hora del backend. Dispositivo permite capturar la hora visible en tu celular.",
         )
 
-        if fuente_hora == "Dispositivo":
+        if fuente_hora == "Dispositivo (manual)":
             hora_referencia = st.time_input(
                 "Hora del dispositivo",
                 value=current_time_local(),
@@ -102,7 +119,7 @@ def main() -> None:
         else:
             st.caption(f"Hora servidor: {hora_referencia.strftime('%H:%M:%S')}")
 
-        hora_detectada = ScannerService.detect_hora_clase_by_time(turno_nombre, hora_referencia)
+        hora_detectada = _detect_hora_clase_automatica(turno_nombre, hora_referencia)
         if hora_detectada is None:
             st.warning("No hay una hora clase activa para la hora indicada. Cambia a modo manual para continuar.")
         else:
