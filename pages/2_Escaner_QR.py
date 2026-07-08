@@ -7,6 +7,7 @@ from sqlalchemy import select
 from database.db import get_session, init_db
 from database.models import Docente, DocenteHoraClase, HoraClase, Turno
 from services.scanner import ScannerService
+from services.time_utils import current_time_local, today_local
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar
 
 
@@ -30,10 +31,8 @@ def _get_horas_clase(turno_id: int) -> dict[str, int]:
 
 def _get_salones_for_turno_hora(turno_id: int, numero_hora: int) -> set[str]:
     """Obtiene salones disponibles para un turno y hora específicos."""
-    import datetime
-
     with get_session() as session:
-        today = datetime.date.today()
+        today = today_local()
         day_of_week = today.weekday()
 
         salones = session.execute(
@@ -74,8 +73,51 @@ def main() -> None:
         st.error(f"No hay horas clase configuradas para {turno_nombre}.")
         st.stop()
 
-    hora_label = st.selectbox("Hora Clase", list(horas_clase.keys()), key="hora_select")
-    numero_hora = horas_clase[hora_label]
+    modo_hora = st.radio(
+        "Modo de selección de hora clase",
+        ["Automático", "Manual"],
+        horizontal=True,
+        help="Automático detecta la hora clase por la hora actual. Manual permite seleccionar la hora clase.",
+    )
+
+    hora_label = ""
+    numero_hora: int | None = None
+    hora_referencia = current_time_local()
+
+    if modo_hora == "Automático":
+        fuente_hora = st.radio(
+            "Fuente de hora",
+            ["Servidor", "Dispositivo"],
+            horizontal=True,
+            help="Servidor usa la hora del backend. Dispositivo permite capturar la hora visible en tu celular.",
+        )
+
+        if fuente_hora == "Dispositivo":
+            hora_referencia = st.time_input(
+                "Hora del dispositivo",
+                value=current_time_local(),
+                step=60,
+                help="Ajusta esta hora para que coincida con la del dispositivo desde donde escaneas.",
+            )
+        else:
+            st.caption(f"Hora servidor: {hora_referencia.strftime('%H:%M:%S')}")
+
+        hora_detectada = ScannerService.detect_hora_clase_by_time(turno_nombre, hora_referencia)
+        if hora_detectada is None:
+            st.warning("No hay una hora clase activa para la hora indicada. Cambia a modo manual para continuar.")
+        else:
+            numero_hora = hora_detectada.numero
+            hora_label = (
+                f"Hora {hora_detectada.numero} "
+                f"({hora_detectada.hora_inicio.strftime('%H:%M')}-{hora_detectada.hora_fin.strftime('%H:%M')})"
+            )
+            st.success(f"Hora clase detectada automáticamente: {hora_label}")
+
+    if modo_hora == "Manual" or numero_hora is None:
+        hora_label = st.selectbox("Hora Clase", list(horas_clase.keys()), key="hora_select")
+        numero_hora = horas_clase[hora_label]
+        # En modo manual, el registro usa la hora del servidor.
+        hora_referencia = current_time_local()
 
     salones = _get_salones_for_turno_hora(turno_id, numero_hora)
     if not salones:
@@ -158,6 +200,7 @@ def main() -> None:
             numero_hora=numero_hora,
             salon=salon,
             usuario_registro=user["usuario"],
+            hora_registro=hora_referencia,
         )
 
         if result.success:

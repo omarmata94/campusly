@@ -91,6 +91,22 @@ class ScannerService:
             ).scalars().all()
 
     @staticmethod
+    def detect_hora_clase_by_time(turno: str, hora_referencia: time) -> Optional[HoraClase]:
+        """Detecta automáticamente la hora clase activa para un turno según la hora de referencia."""
+        with get_session() as session:
+            horas = session.execute(
+                select(HoraClase)
+                .where(HoraClase.turno.has(nombre=turno))
+                .order_by(HoraClase.numero)
+            ).scalars().all()
+
+            for hora_clase in horas:
+                # Intervalo inclusivo al inicio y exclusivo al final para evitar traslapes.
+                if hora_clase.hora_inicio <= hora_referencia < hora_clase.hora_fin:
+                    return hora_clase
+        return None
+
+    @staticmethod
     def calculate_status(hora_clase_inicio: time, hora_clase_fin: time, hora_actual: time) -> str:
         """Normaliza el estatus de registro a una sola categoría operativa."""
         return "Asistencia"
@@ -102,6 +118,7 @@ class ScannerService:
         numero_hora: int,
         salon: Optional[str],
         usuario_registro: str,
+        hora_registro: Optional[time] = None,
     ) -> ScanResult:
         """Registra asistencia de un docente en un turno y hora específicos.
         
@@ -114,7 +131,7 @@ class ScannerService:
         """
         qr_uuid = ScannerService._normalize_payload(qr_payload)
         today = today_local()
-        current_time = current_time_local()
+        current_time = hora_registro or current_time_local()
 
         with get_session() as session:
             # Obtener docente del QR
