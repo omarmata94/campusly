@@ -242,6 +242,26 @@ def _render_bulk_upload_section() -> None:
     st.markdown("### 🚀 Carga masiva de horarios")
     st.caption("Importa en un solo paso los PDFs de maestros matutinos y nocturnos.")
 
+    current_date = today_local()
+    default_anio = current_date.year
+    default_cuatrimestre = cuatrimestre_for_date(current_date)
+    c_periodo1, c_periodo2 = st.columns(2)
+    bulk_anio = c_periodo1.number_input(
+        "Año académico (masivo)",
+        min_value=2020,
+        max_value=2100,
+        value=int(default_anio),
+        step=1,
+        key="bulk_periodo_anio",
+    )
+    bulk_cuatrimestre = c_periodo2.selectbox(
+        "Cuatrimestre (masivo)",
+        [1, 2, 3],
+        index=[1, 2, 3].index(int(default_cuatrimestre)),
+        format_func=lambda x: {1: "1 - Enero-Abril", 2: "2 - Mayo-Agosto", 3: "3 - Septiembre-Diciembre"}[x],
+        key="bulk_periodo_cuatrimestre",
+    )
+
     bulk_files = st.file_uploader(
         "Selecciona todos los PDFs de horarios",
         type=["pdf"],
@@ -264,7 +284,14 @@ def _render_bulk_upload_section() -> None:
     st.info(f"Se detectaron {len(bulk_files)} archivos listos para importar.")
     if st.button("✅ Ejecutar carga masiva", type="primary", use_container_width=True, key="run_bulk_import"):
         with st.spinner("⏳ Procesando carga masiva..."):
-            summary = _process_bulk_pdf_upload(bulk_files, clear_existing_bulk)
+            user = st.session_state.get("auth_user") or {}
+            summary = _process_bulk_pdf_upload(
+                bulk_files,
+                clear_existing_bulk,
+                int(bulk_anio),
+                int(bulk_cuatrimestre),
+                user.get("usuario", "sistema"),
+            )
 
         if summary["processed_files"] == 0:
             st.error("No se pudo procesar ningún archivo.")
@@ -301,8 +328,19 @@ def _render_bulk_upload_section() -> None:
     st.divider()
 
 
-def _process_bulk_pdf_upload(files, clear_existing: bool, anio: int, cuatrimestre: int, usuario: str) -> dict:
+def _process_bulk_pdf_upload(
+    files,
+    clear_existing: bool,
+    anio: int | None = None,
+    cuatrimestre: int | None = None,
+    usuario: str = "sistema",
+) -> dict:
     """Procesa múltiples PDFs y devuelve métricas consolidadas de importación."""
+    if anio is None or cuatrimestre is None:
+        now_date = today_local()
+        anio = anio or now_date.year
+        cuatrimestre = cuatrimestre or cuatrimestre_for_date(now_date)
+
     processed_files = 0
     successful_files = 0
     failed_files = 0
