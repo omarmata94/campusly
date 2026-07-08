@@ -20,6 +20,8 @@ class AttendanceFilters:
     docente_id: Optional[int] = None
     departamento: Optional[str] = None
     estatus: Optional[str] = None
+    anio: Optional[int] = None
+    cuatrimestre: Optional[int] = None
 
 
 class ReportService:
@@ -29,6 +31,8 @@ class ReportService:
             select(
                 Asistencia.id.label("id"),
                 Asistencia.fecha.label("fecha"),
+                Asistencia.anio.label("anio"),
+                Asistencia.cuatrimestre.label("cuatrimestre"),
                 Asistencia.hora.label("hora"),
                 Asistencia.estatus.label("estatus"),
                 Asistencia.turno.label("turno"),
@@ -63,6 +67,10 @@ class ReportService:
             conditions.append(Docente.departamento == filters.departamento)
         if filters.estatus:
             conditions.append(Asistencia.estatus == filters.estatus)
+        if filters.anio:
+            conditions.append(Asistencia.anio == filters.anio)
+        if filters.cuatrimestre:
+            conditions.append(Asistencia.cuatrimestre == filters.cuatrimestre)
 
         if conditions:
             query = query.where(and_(*conditions))
@@ -78,6 +86,14 @@ class ReportService:
             df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
             df["hora"] = df["hora"].astype(str)
         return df
+
+    @staticmethod
+    def available_years() -> list[int]:
+        with get_session() as session:
+            rows = session.execute(
+                select(Asistencia.anio).where(Asistencia.anio.is_not(None)).distinct().order_by(Asistencia.anio.desc())
+            ).scalars().all()
+        return [int(y) for y in rows if y is not None]
 
     @staticmethod
     def latest_records(limit: int = 8) -> pd.DataFrame:

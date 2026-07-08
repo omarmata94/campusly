@@ -16,7 +16,7 @@ from sqlalchemy import select
 
 from database.db import get_session
 from database.models import Asistencia, Docente, DocenteHoraClase, HoraClase
-from services.time_utils import current_time_local, today_local
+from services.time_utils import cuatrimestre_for_date, current_time_local, today_local
 
 
 @dataclass
@@ -210,6 +210,8 @@ class ScannerService:
                 docente_id=docente.id,
                 hora_clase_id=hora_clase.id,
                 fecha=today,
+                anio=today.year,
+                cuatrimestre=cuatrimestre_for_date(today),
                 hora=current_time,
                 turno=turno,
                 numero_hora=numero_hora,

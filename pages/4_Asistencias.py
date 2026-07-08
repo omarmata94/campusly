@@ -28,6 +28,17 @@ def main() -> None:
         fecha_inicio = c1.date_input("Fecha inicial", value=default_date)
         fecha_fin = c2.date_input("Fecha final", value=default_date)
 
+        anios = ReportService.available_years()
+        if default_date.year not in anios:
+            anios = [default_date.year] + anios
+        anio_options = ["Todos"] + [str(a) for a in sorted(set(anios), reverse=True)]
+        cuatrimestre_options = [
+            "Todos",
+            "1 - Enero-Abril",
+            "2 - Mayo-Agosto",
+            "3 - Septiembre-Diciembre",
+        ]
+
         docentes_df = pd.DataFrame()
         with st.spinner("Cargando docentes..."):
             from database.db import get_session
@@ -47,6 +58,9 @@ def main() -> None:
         c3, c4 = st.columns(2)
         docente_label = c3.selectbox("Docente", docente_options)
         departamento = c4.selectbox("Departamento", departamento_options)
+        c5, c6 = st.columns(2)
+        anio_label = c5.selectbox("Año", anio_options)
+        cuatrimestre_label = c6.selectbox("Cuatrimestre", cuatrimestre_options)
         estatus = st.selectbox("Estatus", estatus_options)
         submit = st.form_submit_button("Aplicar filtros", use_container_width=True)
 
@@ -61,6 +75,8 @@ def main() -> None:
             docente_id=docente_id,
             departamento=None if departamento == "Todos" else departamento,
             estatus=None if estatus == "Todos" else estatus,
+            anio=None if anio_label == "Todos" else int(anio_label),
+            cuatrimestre=None if cuatrimestre_label == "Todos" else int(cuatrimestre_label.split(" - ")[0]),
         )
         df = ReportService.fetch_attendances(filters)
         if df.empty:

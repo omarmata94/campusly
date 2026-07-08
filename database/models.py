@@ -81,6 +81,8 @@ class Asistencia(Base):
     docente_id: Mapped[int] = mapped_column(ForeignKey("docentes.id"), nullable=False, index=True)
     hora_clase_id: Mapped[int] = mapped_column(ForeignKey("horas_clase.id"), nullable=False, index=True)
     fecha: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    anio: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    cuatrimestre: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     hora: Mapped[time] = mapped_column(Time, nullable=False)
     turno: Mapped[str] = mapped_column(String(20), nullable=False)
     numero_hora: Mapped[int] = mapped_column(Integer, nullable=False)

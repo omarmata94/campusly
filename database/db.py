@@ -34,6 +34,7 @@ SessionLocal = sessionmaker(
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_docentes_columns()
+    _ensure_asistencias_period_columns()
     _initialize_turnos_y_horas()
 
 
@@ -68,6 +69,37 @@ def _ensure_docentes_columns() -> None:
                 ifnull(apellido_paterno, '') = ''
                 AND ifnull(apellido_materno, '') = ''
                 AND ifnull(apellidos, '') <> ''
+            """
+        )
+
+
+def _ensure_asistencias_period_columns() -> None:
+    """Agrega y rellena anio/cuatrimestre para historial académico en asistencias."""
+    with engine.begin() as connection:
+        columns = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(asistencias)").fetchall()}
+
+        if "anio" not in columns:
+            connection.exec_driver_sql("ALTER TABLE asistencias ADD COLUMN anio INTEGER")
+        if "cuatrimestre" not in columns:
+            connection.exec_driver_sql("ALTER TABLE asistencias ADD COLUMN cuatrimestre INTEGER")
+
+        # Backfill histórico con base en la fecha del registro.
+        connection.exec_driver_sql(
+            """
+            UPDATE asistencias
+            SET anio = CAST(strftime('%Y', fecha) AS INTEGER)
+            WHERE anio IS NULL
+            """
+        )
+        connection.exec_driver_sql(
+            """
+            UPDATE asistencias
+            SET cuatrimestre = CASE
+                WHEN CAST(strftime('%m', fecha) AS INTEGER) BETWEEN 1 AND 4 THEN 1
+                WHEN CAST(strftime('%m', fecha) AS INTEGER) BETWEEN 5 AND 8 THEN 2
+                ELSE 3
+            END
+            WHERE cuatrimestre IS NULL
             """
         )
 
