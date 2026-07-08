@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, time
+
 import streamlit as st
 from PIL import Image
 from sqlalchemy import select
@@ -9,6 +11,11 @@ from database.models import Docente, DocenteHoraClase, HoraClase, Turno
 from services.scanner import ScannerService
 from services.time_utils import current_time_local, today_local
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar
+
+try:
+    from streamlit_javascript import st_javascript
+except Exception:
+    st_javascript = None
 
 
 def _get_turnos() -> dict[str, int]:
@@ -64,6 +71,21 @@ def _detect_hora_clase_automatica(turno_nombre: str, hora_referencia):
     return None
 
 
+def _browser_device_time() -> time | None:
+    """Obtiene la hora del navegador (dispositivo) cuando está disponible."""
+    if st_javascript is None:
+        return None
+
+    js_result = st_javascript("new Date().toTimeString().slice(0,8);")
+    if not js_result or not isinstance(js_result, str):
+        return None
+
+    try:
+        return datetime.strptime(js_result, "%H:%M:%S").time()
+    except ValueError:
+        return None
+
+
 def main() -> None:
     init_db()
     configure_page(f"{APP_NAME} | Escáner QR")
@@ -104,12 +126,19 @@ def main() -> None:
     if modo_hora == "Automático":
         fuente_hora = st.radio(
             "Fuente de hora",
-            ["Servidor", "Dispositivo (manual)"],
+            ["Servidor", "Dispositivo (automático)", "Dispositivo (manual)"],
             horizontal=True,
-            help="Servidor usa la hora del backend. Dispositivo permite capturar la hora visible en tu celular.",
+            help="Servidor usa la hora del backend. Dispositivo automático usa la hora del navegador.",
         )
 
-        if fuente_hora == "Dispositivo (manual)":
+        if fuente_hora == "Dispositivo (automático)":
+            browser_time = _browser_device_time()
+            if browser_time is None:
+                st.warning("No se pudo leer la hora automática del dispositivo. Usa Dispositivo (manual).")
+            else:
+                hora_referencia = browser_time
+                st.caption(f"Hora dispositivo (automática): {hora_referencia.strftime('%H:%M:%S')}")
+        elif fuente_hora == "Dispositivo (manual)":
             hora_referencia = st.time_input(
                 "Hora del dispositivo",
                 value=current_time_local(),
