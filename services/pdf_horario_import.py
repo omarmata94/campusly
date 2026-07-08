@@ -35,6 +35,9 @@ class PDFImportResult:
     docente_nombre: str = ""
     numero_empleado: str = ""
     turno: str = ""
+    periodo_anio: int = 0
+    periodo_cuatrimestre: int = 0
+    periodo_fuente: str = ""
     entries_count: int = 0
     errors: List[str] = None
 
@@ -84,6 +87,9 @@ class PDFHorarioExtractor:
         self.docente_nombre = ""
         self.numero_empleado = ""
         self.turno = ""
+        self.periodo_anio = 0
+        self.periodo_cuatrimestre = 0
+        self.periodo_fuente = ""
         self.horas_map = {}
 
     def extract_from_pdf(self, pdf_path: str) -> Tuple[bool, List[HorarioEntry], List[str]]:
@@ -190,6 +196,31 @@ class PDFHorarioExtractor:
             self.horas_map = self.HORAS_NOCTURNO.copy()
         else:
             self.horas_map = self.HORAS_MATUTINO.copy()
+
+        self.periodo_anio, self.periodo_cuatrimestre, self.periodo_fuente = self._infer_periodo(text)
+
+    def _infer_periodo(self, text: str) -> Tuple[int, int, str]:
+        """Intenta inferir año y cuatrimestre a partir del encabezado del PDF."""
+        lower = text.lower()
+        year_match = re.search(r"\b(20\d{2})\b", lower)
+        year = int(year_match.group(1)) if year_match else 0
+
+        cuatri_match = re.search(r"\b([123])\s*(?:er|ro|do)?\s*cuatrimestre\b", lower)
+        if cuatri_match:
+            return year, int(cuatri_match.group(1)), "pdf"
+
+        has_ene = any(m in lower for m in ["enero", "ene"]) and any(m in lower for m in ["abril", "abr"])
+        has_may = any(m in lower for m in ["mayo", "may"]) and any(m in lower for m in ["agosto", "ago"])
+        has_sep = any(m in lower for m in ["septiembre", "sep"]) and any(m in lower for m in ["diciembre", "dic"])
+
+        if has_ene:
+            return year, 1, "pdf"
+        if has_may:
+            return year, 2, "pdf"
+        if has_sep:
+            return year, 3, "pdf"
+
+        return year, 0, "manual"
 
     def _is_schedule_table(self, table: List[List[str]]) -> bool:
         """
@@ -437,6 +468,9 @@ class PDFHorarioImportService:
                 docente_nombre=docente_nombre,
                 numero_empleado=numero_empleado,
                 turno=turno,
+                periodo_anio=self.extractor.periodo_anio,
+                periodo_cuatrimestre=self.extractor.periodo_cuatrimestre,
+                periodo_fuente=self.extractor.periodo_fuente,
                 entries_count=imported_count,
                 errors=errors,
             )

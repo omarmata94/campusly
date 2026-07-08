@@ -16,8 +16,9 @@ from collections import defaultdict
 import streamlit as st
 
 from database.db import DB_PATH, init_db, get_session
-from database.models import Docente, DocenteHoraClase, HoraClase, Turno
+from database.models import Docente, DocenteHoraClase, HoraClase, ImportacionHorario, Turno
 from services.pdf_horario_import import PDFHorarioImportService
+from services.time_utils import cuatrimestre_for_date, today_local
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar
 
 
@@ -63,6 +64,10 @@ def main() -> None:
 
     _render_bulk_upload_section()
 
+    current_date = today_local()
+    default_anio = current_date.year
+    default_cuatrimestre = cuatrimestre_for_date(current_date)
+
     # Sección de carga de archivo
     st.markdown("### Seleccionar Archivo")
     
@@ -90,6 +95,29 @@ def main() -> None:
         # Mostrar resultado
         if result.success:
             st.success("✅ PDF procesado correctamente")
+
+            detected_anio = result.periodo_anio or default_anio
+            detected_cuatrimestre = result.periodo_cuatrimestre or default_cuatrimestre
+            periodo_fuente = "detectado del PDF" if result.periodo_fuente == "pdf" else "no detectado"
+
+            st.markdown("### 📆 Periodo académico del horario")
+            st.caption(f"Estado de detección: {periodo_fuente}")
+            c_periodo1, c_periodo2 = st.columns(2)
+            anio_periodo = c_periodo1.number_input(
+                "Año académico",
+                min_value=2020,
+                max_value=2100,
+                value=int(detected_anio),
+                step=1,
+                key="pdf_periodo_anio",
+            )
+            cuatrimestre_periodo = c_periodo2.selectbox(
+                "Cuatrimestre",
+                [1, 2, 3],
+                index=[1, 2, 3].index(int(detected_cuatrimestre)),
+                format_func=lambda x: {1: "1 - Enero-Abril", 2: "2 - Mayo-Agosto", 3: "3 - Septiembre-Diciembre"}[x],
+                key="pdf_periodo_cuatrimestre",
+            )
 
             # Mostrar información extraída
             col1, col2, col3 = st.columns(3)
@@ -144,7 +172,15 @@ def main() -> None:
 
             if st.button("✅ Importar Horario", type="primary", use_container_width=True):
                 with st.spinner("⏳ Importando a la base de datos..."):
-                    import_result = _import_to_db(result, entries, clear_existing)
+                    import_result = _import_to_db(
+                        result,
+                        entries,
+                        clear_existing,
+                        int(anio_periodo),
+                        int(cuatrimestre_periodo),
+                        user["usuario"],
+                        uploaded_file.name,
+                    )
 
                 if import_result["success"]:
                     st.success(import_result["message"])
@@ -264,7 +300,7 @@ def _render_bulk_upload_section() -> None:
     st.divider()
 
 
-def _process_bulk_pdf_upload(files, clear_existing: bool) -> dict:
+def _process_bulk_pdf_upload(files, clear_existing: bool, anio: int, cuatrimestre: int, usuario: str) -> dict:
     """Procesa múltiples PDFs y devuelve métricas consolidadas de importación."""
     processed_files = 0
     successful_files = 0
@@ -302,7 +338,15 @@ def _process_bulk_pdf_upload(files, clear_existing: bool) -> dict:
                     errors.append(f"{uploaded_file.name}: {detail}")
                 continue
 
-            import_result = _import_to_db(result, entries, clear_existing)
+            import_result = _import_to_db(
+                result,
+                entries,
+                clear_existing,
+                anio,
+                cuatrimestre,
+                usuario,
+                uploaded_file.name,
+            )
             if not import_result.get("success"):
                 failed_files += 1
                 errors.append(f"{uploaded_file.name}: {import_result.get('message', 'Error de importación')}")
@@ -425,7 +469,15 @@ def _reset_operational_data() -> dict:
         }
 
 
-def _import_to_db(result, entries, clear_existing: bool) -> dict:
+def _import_to_db(
+    result,
+    entries,
+    clear_existing: bool,
+    anio: int,
+    cuatrimestre: int,
+    usuario: str,
+    archivo_nombre: str,
+) -> dict:
     """
     Importa los datos extraídos a la base de datos
     """
@@ -561,6 +613,20 @@ def _import_to_db(result, entries, clear_existing: bool) -> dict:
                     errors.append(f"Error en {entry.dia_semana} hora {entry.numero_hora}: {str(e)}")
                     skipped_count += 1
 
+            session.commit()
+
+            session.add(
+                ImportacionHorario(
+                    fecha_importacion=datetime.now(),
+                    usuario=usuario,
+                    archivo_nombre=archivo_nombre,
+                    numero_empleado=result.numero_empleado,
+                    turno=result.turno,
+                    anio=anio,
+                    cuatrimestre=cuatrimestre,
+                    metodo_deteccion="pdf" if (result.periodo_fuente == "pdf") else "manual",
+                )
+            )
             session.commit()
 
             return {

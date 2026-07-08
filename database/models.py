@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import date, datetime, time
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, Time, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Time, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -103,3 +103,17 @@ class Usuario(Base):
     usuario: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     rol: Mapped[str] = mapped_column(String(20), nullable=False)
+
+
+class ImportacionHorario(Base):
+    __tablename__ = "importaciones_horario"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    fecha_importacion: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    usuario: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    archivo_nombre: Mapped[str] = mapped_column(String(255), nullable=False)
+    numero_empleado: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    turno: Mapped[str] = mapped_column(String(20), nullable=False)
+    anio: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    cuatrimestre: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    metodo_deteccion: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
