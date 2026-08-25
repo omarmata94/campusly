@@ -35,6 +35,9 @@ class PDFImportResult:
     docente_nombre: str = ""
     numero_empleado: str = ""
     turno: str = ""
+    periodo_anio: Optional[int] = None
+    periodo_cuatrimestre: Optional[int] = None
+    periodo_fuente: str = "manual"
     entries_count: int = 0
     errors: List[str] = None
 

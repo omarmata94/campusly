@@ -98,9 +98,10 @@ def main() -> None:
         if result.success:
             st.success("✅ PDF procesado correctamente")
 
-            detected_anio = result.periodo_anio or default_anio
-            detected_cuatrimestre = result.periodo_cuatrimestre or default_cuatrimestre
-            periodo_fuente = "detectado del PDF" if result.periodo_fuente == "pdf" else "no detectado"
+            detected_anio = getattr(result, "periodo_anio", None) or default_anio
+            detected_cuatrimestre = getattr(result, "periodo_cuatrimestre", None) or default_cuatrimestre
+            periodo_fuente_raw = getattr(result, "periodo_fuente", "manual")
+            periodo_fuente = "detectado del PDF" if periodo_fuente_raw == "pdf" else "no detectado"
 
             st.markdown("### 📆 Periodo académico del horario")
             st.caption(f"Estado de detección: {periodo_fuente}")
@@ -741,7 +742,7 @@ def _import_to_db(
                     turno=result.turno,
                     anio=anio,
                     cuatrimestre=cuatrimestre,
-                    metodo_deteccion="pdf" if (result.periodo_fuente == "pdf") else "manual",
+                    metodo_deteccion="pdf" if (getattr(result, "periodo_fuente", "manual") == "pdf") else "manual",
                 )
             )
             session.commit()
