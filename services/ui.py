@@ -709,7 +709,7 @@ def get_logo_embed() -> str:
     try:
         # Usa ruta absoluta basada en el directorio del archivo actual
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        logo_path = os.path.join(os.path.dirname(current_dir), 'assets', 'logo.png')
+        logo_path = os.path.join(os.path.dirname(current_dir), 'assets', 'logo_utc.png')
         with open(logo_path, 'rb') as f:
             logo_b64 = base64.b64encode(f.read()).decode()
             return f'data:image/png;base64,{logo_b64}'
@@ -724,7 +724,7 @@ def render_sidebar(user: dict | None = None) -> None:
         try:
             import os
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            logo_path = os.path.join(os.path.dirname(current_dir), 'assets', 'logo.png')
+                        logo_path = os.path.join(os.path.dirname(current_dir), 'assets', 'logo_utc.png')
             if os.path.exists(logo_path):
                 with open(logo_path, 'rb') as f:
                     import base64
@@ -733,9 +733,9 @@ def render_sidebar(user: dict | None = None) -> None:
                     st.markdown(
                         f"""
                         <div class="sidebar-shell" style="display:flex; align-items:center; gap:0.8rem; margin-bottom:0.5rem;">
-                          <img src="{logo_uri}" alt="Campusly" style="width:70px; height:70px; object-fit:contain; flex-shrink:0;">
+                                                    <img src="{logo_uri}" alt="Universidad Tecnologica Cadereyta" style="width:70px; height:70px; object-fit:contain; flex-shrink:0;">
                           <div>
-                            <div class="brand-title" style="font-size: 1.4rem; margin:0;">Campusly</div>
+                                                        <div class="brand-title" style="font-size: 1.05rem; margin:0;">Universidad Tecnológica Cadereyta</div>
                             <div class="brand-subtitle">Asistencia docente</div>
                           </div>
                         </div>
@@ -748,9 +748,9 @@ def render_sidebar(user: dict | None = None) -> None:
                     <div class="sidebar-shell">
                       <div class="brand-card">
                         <div style="display:flex; align-items:center; gap:0.8rem;">
-                          <div class="brand-mark">C</div>
+                                                    <div class="brand-mark">UTC</div>
                           <div>
-                            <div class="brand-title">Campusly</div>
+                                                        <div class="brand-title" style="font-size: 1.05rem;">Universidad Tecnológica Cadereyta</div>
                             <div class="brand-subtitle">Asistencia docente</div>
                           </div>
                         </div>
@@ -765,9 +765,9 @@ def render_sidebar(user: dict | None = None) -> None:
                 <div class="sidebar-shell">
                   <div class="brand-card">
                     <div style="display:flex; align-items:center; gap:0.8rem;">
-                      <div class="brand-mark">C</div>
+                                            <div class="brand-mark">UTC</div>
                       <div>
-                        <div class="brand-title">Campusly</div>
+                                                <div class="brand-title" style="font-size: 1.05rem;">Universidad Tecnológica Cadereyta</div>
                         <div class="brand-subtitle">Asistencia docente</div>
                       </div>
                     </div>
