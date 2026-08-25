@@ -736,8 +736,8 @@ def render_sidebar(user: dict | None = None) -> None:
                         <div class="sidebar-shell" style="display:flex; align-items:center; gap:0.8rem; margin-bottom:0.5rem;">
                                                     <img src="{logo_uri}" alt="Universidad Tecnologica Cadereyta" style="width:70px; height:70px; object-fit:contain; flex-shrink:0;">
                           <div>
-                                                        <div class="brand-title" style="font-size: 1.05rem; margin:0;">Universidad Tecnológica Cadereyta</div>
-                            <div class="brand-subtitle">SIAUT · Sistema Integral de Asistencia UTC</div>
+                                                        <div class="brand-title" style="font-size: 1.05rem; margin:0;">SIAUT</div>
+                                                        <div class="brand-subtitle">Sistema Integral de Asistencia UTC</div>
                           </div>
                         </div>
                         """,
@@ -751,8 +751,8 @@ def render_sidebar(user: dict | None = None) -> None:
                         <div style="display:flex; align-items:center; gap:0.8rem;">
                                                     <div class="brand-mark">UTC</div>
                           <div>
-                                                        <div class="brand-title" style="font-size: 1.05rem;">Universidad Tecnológica Cadereyta</div>
-                            <div class="brand-subtitle">SIAUT · Sistema Integral de Asistencia UTC</div>
+                                                        <div class="brand-title" style="font-size: 1.05rem;">SIAUT</div>
+                            <div class="brand-subtitle">Sistema Integral de Asistencia UTC</div>
                           </div>
                         </div>
                       </div>
@@ -768,8 +768,8 @@ def render_sidebar(user: dict | None = None) -> None:
                     <div style="display:flex; align-items:center; gap:0.8rem;">
                                             <div class="brand-mark">UTC</div>
                       <div>
-                                                <div class="brand-title" style="font-size: 1.05rem;">Universidad Tecnológica Cadereyta</div>
-                        <div class="brand-subtitle">SIAUT · Sistema Integral de Asistencia UTC</div>
+                                                <div class="brand-title" style="font-size: 1.05rem;">SIAUT</div>
+                        <div class="brand-subtitle">Sistema Integral de Asistencia UTC</div>
                       </div>
                     </div>
                   </div>
