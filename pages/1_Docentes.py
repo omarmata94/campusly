@@ -166,6 +166,22 @@ def _safe_filename(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", value.strip())
 
 
+def _load_print_logo() -> Image.Image | None:
+    """Carga el logo institucional para la tarjeta imprimible si existe."""
+    candidates = [
+        ROOT_DIR / "assets" / "logo_utc.png",
+        ROOT_DIR / "assets" / "logo_utc.jpg",
+        ROOT_DIR / "assets" / "logo.png",
+    ]
+    for path in candidates:
+        if path.exists():
+            try:
+                return Image.open(path).convert("RGBA")
+            except Exception:
+                continue
+    return None
+
+
 def _build_identified_qr_png(qr_path: Path, numero_empleado: str, nombre_completo: str, turno_nombre: str) -> bytes:
     """Genera una imagen QR lista para impresión con identificación textual."""
     qr_img = Image.open(qr_path).convert("RGB")
@@ -174,7 +190,7 @@ def _build_identified_qr_png(qr_path: Path, numero_empleado: str, nombre_complet
 
     card_w = 620
     card_h = 720
-    canvas = Image.new("RGB", (card_w, card_h), "#f5f8ff")
+    canvas = Image.new("RGB", (card_w, card_h), "#fff7ed")
 
     draw = ImageDraw.Draw(canvas)
     font = ImageFont.load_default()
@@ -182,21 +198,32 @@ def _build_identified_qr_png(qr_path: Path, numero_empleado: str, nombre_complet
     subtitle = "Codigo QR"
 
     # Tarjeta principal.
-    draw.rounded_rectangle((20, 20, card_w - 20, card_h - 20), radius=24, fill="white", outline="#1e3a8a", width=3)
+    draw.rounded_rectangle((20, 20, card_w - 20, card_h - 20), radius=24, fill="white", outline="#f97316", width=3)
 
     # Encabezado.
-    draw.rectangle((40, 42, card_w - 40, 112), fill="#1e3a8a")
+    draw.rectangle((40, 42, card_w - 40, 112), fill="#f97316")
     title_w = draw.textlength(title, font=font)
     subtitle_w = draw.textlength(subtitle, font=font)
     draw.text(((card_w - title_w) / 2, 58), title, fill="white", font=font)
-    draw.text(((card_w - subtitle_w) / 2, 82), subtitle, fill="#dbeafe", font=font)
+    draw.text(((card_w - subtitle_w) / 2, 82), subtitle, fill="#ffedd5", font=font)
+
+    logo_img = _load_print_logo()
+    if logo_img is not None:
+        logo_max_w = 130
+        logo_ratio = logo_img.height / max(logo_img.width, 1)
+        logo_w = min(logo_max_w, logo_img.width)
+        logo_h = int(logo_w * logo_ratio)
+        logo_resized = logo_img.resize((logo_w, logo_h), Image.Resampling.LANCZOS)
+        logo_x = card_w - 46 - logo_w
+        logo_y = 122
+        canvas.paste(logo_resized, (logo_x, logo_y), logo_resized)
 
     # Marco de QR.
     qr_frame_x1 = (card_w - qr_size) // 2 - 14
     qr_frame_y1 = 154
     qr_frame_x2 = qr_frame_x1 + qr_size + 28
     qr_frame_y2 = qr_frame_y1 + qr_size + 28
-    draw.rounded_rectangle((qr_frame_x1, qr_frame_y1, qr_frame_x2, qr_frame_y2), radius=18, outline="#c7d2fe", width=3)
+    draw.rounded_rectangle((qr_frame_x1, qr_frame_y1, qr_frame_x2, qr_frame_y2), radius=18, outline="#14b8a6", width=3)
     canvas.paste(qr_img, (qr_frame_x1 + 14, qr_frame_y1 + 14))
 
     # Nombre centrado con corte en 2 lineas.
@@ -227,10 +254,10 @@ def _build_identified_qr_png(qr_path: Path, numero_empleado: str, nombre_complet
         text_y += 24
 
     # Pie de corte.
-    draw.line((56, card_h - 74, card_w - 56, card_h - 74), fill="#e2e8f0", width=1)
+    draw.line((56, card_h - 74, card_w - 56, card_h - 74), fill="#fde68a", width=1)
     foot = "Imprimir y colocar en gafete"
     foot_w = draw.textlength(foot, font=font)
-    draw.text(((card_w - foot_w) / 2, card_h - 58), foot, fill="#475569", font=font)
+    draw.text(((card_w - foot_w) / 2, card_h - 58), foot, fill="#0f766e", font=font)
 
     output = io.BytesIO()
     canvas.save(output, format="PNG")
