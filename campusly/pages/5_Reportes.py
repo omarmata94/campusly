@@ -5,6 +5,8 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
+from database.db import get_session
+from database.models import Asistencia, Docente
 from services.reports import AttendanceFilters, ReportService
 from services.time_utils import today_local
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar, styled_attendance_table
@@ -42,6 +44,17 @@ def _filter_frame(df: pd.DataFrame) -> pd.DataFrame:
     return filtered
 
 
+def _load_custom_options() -> tuple[list[tuple[str, int]], list[str], list[str], list[int]]:
+    with get_session() as session:
+        docentes = session.query(Docente).order_by(Docente.apellido_paterno, Docente.apellido_materno, Docente.nombre).all()
+        turnos = [row[0] for row in session.query(Asistencia.turno).distinct().order_by(Asistencia.turno).all()]
+        departamentos = [row[0] for row in session.query(Docente.departamento).distinct().order_by(Docente.departamento).all()]
+        years = [row[0] for row in session.query(Asistencia.anio).distinct().order_by(Asistencia.anio).all()]
+
+    docente_options = [(f"{docente.numero_empleado} - {docente.nombre} {docente.apellidos}".strip(), docente.id) for docente in docentes]
+    return docente_options, [turno for turno in turnos if turno], [departamento for departamento in departamentos if departamento], [int(year) for year in years if year is not None]
+
+
 def main() -> None:
     configure_page(f"{APP_NAME} | Reportes")
     user = require_login(["Administrador", "Prefecto"])
@@ -64,6 +77,8 @@ def main() -> None:
 
         st.markdown(f"**Periodo:** {fecha_inicio.isoformat()} a {fecha_fin.isoformat()}")
     else:
+        docente_options, turno_options, departamento_options, year_options = _load_custom_options()
+        year_options = year_options or [today_local().year]
         with st.form("custom_report_form"):
             st.markdown("### Consulta personalizada")
             c1, c2 = st.columns(2)
@@ -71,12 +86,18 @@ def main() -> None:
             fecha_fin = c2.date_input("Fecha final", value=today_local())
 
             c3, c4 = st.columns(2)
-            departamento = c3.text_input("Departamento", placeholder="Opcional")
-            estatus = c4.selectbox("Estatus", ["Todos", "Puntual", "Retardo", "Falta"], index=0)
+            docente_label = c3.selectbox("Docente", ["Todos"] + [label for label, _ in docente_options], index=0)
+            turno = c4.selectbox("Turno", ["Todos"] + turno_options, index=0)
 
             c5, c6 = st.columns(2)
-            docente_id_text = c5.text_input("ID de docente", placeholder="Opcional")
-            submit = c6.form_submit_button("Buscar", use_container_width=True, type="primary")
+            departamento = c5.selectbox("Departamento", ["Todos"] + departamento_options, index=0)
+            estatus = c6.selectbox("Estatus", ["Todos", "Puntual", "Retardo", "Falta"], index=0)
+
+            c7, c8 = st.columns(2)
+            anio = c7.selectbox("Año académico", ["Todos"] + year_options, index=0)
+            cuatrimestre = c8.selectbox("Cuatrimestre", ["Todos", 1, 2, 3], index=0)
+
+            submit = st.form_submit_button("Buscar", use_container_width=True, type="primary")
 
         if not submit:
             st.info("Completa los filtros y pulsa Buscar para ejecutar la consulta.")
@@ -86,13 +107,18 @@ def main() -> None:
             st.error("La fecha inicial no puede ser mayor que la final.")
             st.stop()
 
-        docente_id = int(docente_id_text) if docente_id_text.strip().isdigit() else None
+        docente_id = None
+        if docente_label != "Todos":
+            docente_id = next((docente_id for label, docente_id in docente_options if label == docente_label), None)
         filters = AttendanceFilters(
             fecha_inicio=fecha_inicio,
             fecha_fin=fecha_fin,
             docente_id=docente_id,
-            departamento=departamento.strip() or None,
+            departamento=None if departamento == "Todos" else departamento,
             estatus=None if estatus == "Todos" else estatus,
+            turno=None if turno == "Todos" else turno,
+            anio=None if anio == "Todos" else int(anio),
+            cuatrimestre=None if cuatrimestre == "Todos" else int(cuatrimestre),
         )
         df = ReportService.fetch_attendances(filters)
         df = _filter_frame(df)
