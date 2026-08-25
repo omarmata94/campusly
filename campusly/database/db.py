@@ -58,6 +58,7 @@ SessionLocal = sessionmaker(
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_docentes_columns()
+    _ensure_asistencias_columns()
     _initialize_turnos_y_horas()
 
 
@@ -92,6 +93,36 @@ def _ensure_docentes_columns() -> None:
                 ifnull(apellido_paterno, '') = ''
                 AND ifnull(apellido_materno, '') = ''
                 AND ifnull(apellidos, '') <> ''
+            """
+        )
+
+
+def _ensure_asistencias_columns() -> None:
+    with engine.begin() as connection:
+        columns = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(asistencias)").fetchall()}
+
+        if "anio" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE asistencias ADD COLUMN anio INTEGER NOT NULL DEFAULT 0"
+            )
+        if "cuatrimestre" not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE asistencias ADD COLUMN cuatrimestre INTEGER NOT NULL DEFAULT 0"
+            )
+
+        connection.exec_driver_sql(
+            """
+            UPDATE asistencias
+            SET anio = CASE WHEN anio = 0 THEN CAST(strftime('%Y', fecha) AS INTEGER) ELSE anio END,
+                cuatrimestre = CASE
+                    WHEN cuatrimestre = 0 THEN
+                        CASE
+                            WHEN CAST(strftime('%m', fecha) AS INTEGER) <= 4 THEN 1
+                            WHEN CAST(strftime('%m', fecha) AS INTEGER) <= 8 THEN 2
+                            ELSE 3
+                        END
+                    ELSE cuatrimestre
+                END
             """
         )
 

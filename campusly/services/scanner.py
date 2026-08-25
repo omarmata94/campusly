@@ -210,6 +210,8 @@ class ScannerService:
                 docente_id=docente.id,
                 hora_clase_id=hora_clase.id,
                 fecha=today,
+                anio=today.year,
+                cuatrimestre=cuatrimestre_for_date(today),
                 hora=current_time,
                 turno=turno,
                 numero_hora=numero_hora,
