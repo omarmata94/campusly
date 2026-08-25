@@ -169,7 +169,6 @@ def _load_print_logo() -> Image.Image | None:
     candidates = [
         ROOT_DIR / "assets" / "logo_utc.png",
         ROOT_DIR / "assets" / "logo_utc.jpg",
-        ROOT_DIR / "assets" / "logo.png",
     ]
     for path in candidates:
         if path.exists():
