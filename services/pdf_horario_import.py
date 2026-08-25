@@ -35,15 +35,20 @@ class PDFImportResult:
     docente_nombre: str = ""
     numero_empleado: str = ""
     turno: str = ""
-    periodo_anio: int = 0
-    periodo_cuatrimestre: int = 0
-    periodo_fuente: str = ""
     entries_count: int = 0
     errors: List[str] = None
 
     def __post_init__(self):
         if self.errors is None:
             self.errors = []
+
+
+@dataclass
+class PDFPageImportPayload:
+    """Resultado de extracción/importación por página."""
+    page_number: int
+    result: PDFImportResult
+    entries: List[HorarioEntry]
 
 
 class PDFHorarioExtractor:
@@ -87,9 +92,12 @@ class PDFHorarioExtractor:
         self.docente_nombre = ""
         self.numero_empleado = ""
         self.turno = ""
-        self.periodo_anio = 0
-        self.periodo_cuatrimestre = 0
-        self.periodo_fuente = ""
+        self.horas_map = {}
+
+    def _reset_context(self) -> None:
+        self.docente_nombre = ""
+        self.numero_empleado = ""
+        self.turno = ""
         self.horas_map = {}
 
     def extract_from_pdf(self, pdf_path: str) -> Tuple[bool, List[HorarioEntry], List[str]]:
@@ -110,46 +118,75 @@ class PDFHorarioExtractor:
                 if len(pdf.pages) == 0:
                     return False, [], ["PDF vacío"]
 
-                page = pdf.pages[0]
-                
-                # Extraer información del docente
-                text = page.extract_text()
-                if not text:
-                    return False, [], ["No se pudo extraer texto del PDF"]
-
-                # Buscar nombre del docente y turno
-                self._extract_header_info(text)
-
-                # Extraer tabla de horario
-                tables = self._extract_candidate_tables(page)
-                if not tables:
-                    return False, [], ["No se encontraron tablas en el PDF"]
-
-                # Intentar parsear todas las tablas candidatas y conservar la más útil.
-                best_entries: List[HorarioEntry] = []
-                parse_errors: List[str] = []
-                schedule_tables = [t for t in tables if self._is_schedule_table(t)]
-                candidate_tables = schedule_tables if schedule_tables else tables
-
-                for idx, table in enumerate(candidate_tables):
-                    table_entries, table_errors = self._parse_schedule_table(table)
-                    if table_errors:
-                        parse_errors.extend([f"Tabla {idx + 1}: {err}" for err in table_errors])
-                    if len(table_entries) > len(best_entries):
-                        best_entries = table_entries
-
-                entries = best_entries
-                errors.extend(parse_errors)
-
-                if not entries:
-                    errors.append("No se pudo parsear la tabla de horario")
-                    return False, [], errors
-
-                return True, entries, errors
+                return self.extract_from_page(pdf.pages[0])
 
         except Exception as e:
             logger.exception("Error al extraer PDF")
             return False, [], [f"Error al procesar PDF: {str(e)}"]
+
+    def extract_from_page(self, page) -> Tuple[bool, List[HorarioEntry], List[str]]:
+        """Extrae información de una sola página de horario."""
+        self._reset_context()
+        errors: List[str] = []
+
+        text = page.extract_text()
+        if not text:
+            return False, [], ["No se pudo extraer texto de la página"]
+
+        self._extract_header_info(text)
+
+        tables = self._extract_candidate_tables(page)
+        if not tables:
+            return False, [], ["No se encontraron tablas en la página"]
+
+        best_entries: List[HorarioEntry] = []
+        parse_errors: List[str] = []
+        schedule_tables = [t for t in tables if self._is_schedule_table(t)]
+        candidate_tables = schedule_tables if schedule_tables else tables
+
+        for idx, table in enumerate(candidate_tables):
+            table_entries, table_errors = self._parse_schedule_table(table)
+            if table_errors:
+                parse_errors.extend([f"Tabla {idx + 1}: {err}" for err in table_errors])
+            if len(table_entries) > len(best_entries):
+                best_entries = table_entries
+
+        errors.extend(parse_errors)
+        if not best_entries:
+            errors.append("No se pudo parsear la tabla de horario")
+            return False, [], errors
+
+        return True, best_entries, errors
+
+    def extract_all_from_pdf(self, pdf_path: str) -> Tuple[List[dict], List[str]]:
+        """Extrae todas las páginas docentes dentro de un PDF."""
+        page_payloads: List[dict] = []
+        global_errors: List[str] = []
+
+        try:
+            with pdfplumber.open(pdf_path) as pdf:
+                if len(pdf.pages) == 0:
+                    return [], ["PDF vacío"]
+
+                for page_idx, page in enumerate(pdf.pages, start=1):
+                    success, entries, errors = self.extract_from_page(page)
+                    page_payloads.append(
+                        {
+                            "page_number": page_idx,
+                            "success": success,
+                            "entries": entries,
+                            "errors": errors,
+                            "docente_nombre": self.docente_nombre,
+                            "numero_empleado": self.numero_empleado,
+                            "turno": self.turno,
+                        }
+                    )
+
+        except Exception as e:
+            logger.exception("Error al extraer PDF multi-página")
+            global_errors.append(f"Error al procesar PDF: {str(e)}")
+
+        return page_payloads, global_errors
 
     def _extract_candidate_tables(self, page) -> List[List[List[str]]]:
         """Extrae tablas probando más de una estrategia de detección."""
@@ -196,31 +233,6 @@ class PDFHorarioExtractor:
             self.horas_map = self.HORAS_NOCTURNO.copy()
         else:
             self.horas_map = self.HORAS_MATUTINO.copy()
-
-        self.periodo_anio, self.periodo_cuatrimestre, self.periodo_fuente = self._infer_periodo(text)
-
-    def _infer_periodo(self, text: str) -> Tuple[int, int, str]:
-        """Intenta inferir año y cuatrimestre a partir del encabezado del PDF."""
-        lower = text.lower()
-        year_match = re.search(r"\b(20\d{2})\b", lower)
-        year = int(year_match.group(1)) if year_match else 0
-
-        cuatri_match = re.search(r"\b([123])\s*(?:er|ro|do)?\s*cuatrimestre\b", lower)
-        if cuatri_match:
-            return year, int(cuatri_match.group(1)), "pdf"
-
-        has_ene = any(m in lower for m in ["enero", "ene"]) and any(m in lower for m in ["abril", "abr"])
-        has_may = any(m in lower for m in ["mayo", "may"]) and any(m in lower for m in ["agosto", "ago"])
-        has_sep = any(m in lower for m in ["septiembre", "sep"]) and any(m in lower for m in ["diciembre", "dic"])
-
-        if has_ene:
-            return year, 1, "pdf"
-        if has_may:
-            return year, 2, "pdf"
-        if has_sep:
-            return year, 3, "pdf"
-
-        return year, 0, "manual"
 
     def _is_schedule_table(self, table: List[List[str]]) -> bool:
         """
@@ -438,15 +450,6 @@ class PDFHorarioImportService:
         numero_empleado = self.extractor.numero_empleado
         turno = self.extractor.turno
 
-        if not numero_empleado:
-            return PDFImportResult(
-                success=False,
-                message="No se pudo extraer el número de empleado del PDF",
-                docente_nombre=docente_nombre,
-                turno=turno,
-                errors=["Número de empleado no encontrado"],
-            )
-
         if not turno:
             return PDFImportResult(
                 success=False,
@@ -468,9 +471,6 @@ class PDFHorarioImportService:
                 docente_nombre=docente_nombre,
                 numero_empleado=numero_empleado,
                 turno=turno,
-                periodo_anio=self.extractor.periodo_anio,
-                periodo_cuatrimestre=self.extractor.periodo_cuatrimestre,
-                periodo_fuente=self.extractor.periodo_fuente,
                 entries_count=imported_count,
                 errors=errors,
             )
@@ -485,6 +485,54 @@ class PDFHorarioImportService:
                 turno=turno,
                 errors=[str(e)],
             )
+
+    def import_all_from_pdf(self, pdf_path: str) -> Tuple[List[PDFPageImportPayload], List[str]]:
+        """Importa metadatos de todas las páginas docentes dentro de un PDF."""
+        page_payloads, global_errors = self.extractor.extract_all_from_pdf(pdf_path)
+        results: List[PDFPageImportPayload] = []
+
+        for payload in page_payloads:
+            page_number = payload.get("page_number", 0)
+            success = bool(payload.get("success"))
+            entries = payload.get("entries", []) or []
+            errors = payload.get("errors", []) or []
+            docente_nombre = payload.get("docente_nombre", "") or ""
+            numero_empleado = payload.get("numero_empleado", "") or ""
+            turno = payload.get("turno", "") or ""
+
+            if not success or not entries:
+                message = "No se pudo extraer el horario del docente"
+                page_result = PDFImportResult(
+                    success=False,
+                    message=message,
+                    docente_nombre=docente_nombre,
+                    numero_empleado=numero_empleado,
+                    turno=turno,
+                    errors=errors,
+                )
+            elif not turno:
+                page_result = PDFImportResult(
+                    success=False,
+                    message="No se pudo detectar el turno (Matutino/Nocturno)",
+                    docente_nombre=docente_nombre,
+                    numero_empleado=numero_empleado,
+                    turno=turno,
+                    errors=errors + ["Turno no especificado en la página"],
+                )
+            else:
+                page_result = PDFImportResult(
+                    success=True,
+                    message=f"Horario extraído correctamente: {len(entries)} registros",
+                    docente_nombre=docente_nombre,
+                    numero_empleado=numero_empleado,
+                    turno=turno,
+                    entries_count=len(entries),
+                    errors=errors,
+                )
+
+            results.append(PDFPageImportPayload(page_number=page_number, result=page_result, entries=entries))
+
+        return results, global_errors
 
     def _import_entries_to_db(
         self, numero_empleado: str, turno: str, entries: List[HorarioEntry]

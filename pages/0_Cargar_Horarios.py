@@ -11,6 +11,8 @@ import os
 import uuid
 import sqlite3
 import shutil
+import re
+import unicodedata
 from datetime import datetime
 from collections import defaultdict
 import streamlit as st
@@ -319,6 +321,21 @@ def _render_bulk_upload_section() -> None:
         with col6:
             st.metric("🌅 Matutino / 🌙 Nocturno", f"{summary['matutino_files']} / {summary['nocturno_files']}")
 
+        detail_rows = summary.get("page_details", [])
+        if detail_rows:
+            ok_rows = sum(1 for row in detail_rows if row.get("estado") == "OK")
+            warn_rows = len(detail_rows) - ok_rows
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.metric("👥 Docentes detectados", len(detail_rows))
+            with c2:
+                st.metric("✅ Docentes importados", ok_rows)
+            with c3:
+                st.metric("⚠️ Docentes con incidencia", warn_rows)
+
+            with st.expander("🧾 Resumen por docente/página", expanded=True):
+                st.dataframe(detail_rows, use_container_width=True, hide_index=True)
+
         if summary["errors"]:
             with st.expander("📋 Ver errores de la carga masiva"):
                 for error in summary["errors"][:200]:
@@ -347,6 +364,7 @@ def _process_bulk_pdf_upload(
     skipped_records = 0
     turno_counter = defaultdict(int)
     errors: list[str] = []
+    page_details: list[dict] = []
 
     progress = st.progress(0.0)
     total_files = len(files)
@@ -359,51 +377,80 @@ def _process_bulk_pdf_upload(
                 tmp_path = tmp_file.name
 
             service = PDFHorarioImportService()
-            result = service.import_from_pdf(tmp_path)
-
-            if not result.success:
-                failed_files += 1
-                errors.append(f"{uploaded_file.name}: {result.message}")
-                for detail in result.errors or []:
-                    errors.append(f"{uploaded_file.name}: {detail}")
-                continue
-
-            success_entries, entries, extraction_errors = service.extractor.extract_from_pdf(tmp_path)
-            if not success_entries or not entries:
-                failed_files += 1
-                errors.append(f"{uploaded_file.name}: No se pudieron extraer entradas para importar")
-                for detail in extraction_errors or []:
-                    errors.append(f"{uploaded_file.name}: {detail}")
-                continue
-
-            import_result = _import_to_db(
-                result,
-                entries,
-                clear_existing,
-                anio,
-                cuatrimestre,
-                usuario,
-                uploaded_file.name,
-            )
-            if not import_result.get("success"):
-                failed_files += 1
-                errors.append(f"{uploaded_file.name}: {import_result.get('message', 'Error de importación')}")
-                for detail in import_result.get("errors", []):
-                    errors.append(f"{uploaded_file.name}: {detail}")
-                continue
-
-            successful_files += 1
-            imported_records += import_result.get("imported_count", 0)
-            skipped_records += import_result.get("skipped_count", 0)
-
-            turno = (result.turno or "").strip().lower()
-            if "matutino" in turno:
-                turno_counter["matutino"] += 1
-            elif "nocturno" in turno:
-                turno_counter["nocturno"] += 1
-
-            for detail in import_result.get("errors", []):
+            page_results, extraction_errors = service.import_all_from_pdf(tmp_path)
+            for detail in extraction_errors:
                 errors.append(f"{uploaded_file.name}: {detail}")
+
+            if not page_results:
+                failed_files += 1
+                errors.append(f"{uploaded_file.name}: No se detectaron páginas de horario válidas")
+                continue
+
+            had_success = False
+            for page_payload in page_results:
+                result = page_payload.result
+                entries = page_payload.entries
+                page_prefix = f"{uploaded_file.name} [pág. {page_payload.page_number}]"
+                base_row = {
+                    "archivo": uploaded_file.name,
+                    "pagina": page_payload.page_number,
+                    "docente": (result.docente_nombre or "N/A"),
+                    "turno": (result.turno or "N/A"),
+                    "estado": "ERROR",
+                    "importados": 0,
+                    "omitidos": 0,
+                    "mensaje": result.message,
+                }
+
+                if not result.success:
+                    errors.append(f"{page_prefix}: {result.message}")
+                    for detail in result.errors or []:
+                        errors.append(f"{page_prefix}: {detail}")
+                    page_details.append(base_row)
+                    continue
+
+                import_result = _import_to_db(
+                    result,
+                    entries,
+                    clear_existing,
+                    anio,
+                    cuatrimestre,
+                    usuario,
+                    uploaded_file.name,
+                )
+                if not import_result.get("success"):
+                    errors.append(f"{page_prefix}: {import_result.get('message', 'Error de importación')}")
+                    for detail in import_result.get("errors", []):
+                        errors.append(f"{page_prefix}: {detail}")
+                    row_error = base_row.copy()
+                    row_error["mensaje"] = import_result.get("message", "Error de importación")
+                    page_details.append(row_error)
+                    continue
+
+                had_success = True
+                imported_records += import_result.get("imported_count", 0)
+                skipped_records += import_result.get("skipped_count", 0)
+
+                turno = (result.turno or "").strip().lower()
+                if "matutino" in turno:
+                    turno_counter["matutino"] += 1
+                elif "nocturno" in turno:
+                    turno_counter["nocturno"] += 1
+
+                for detail in import_result.get("errors", []):
+                    errors.append(f"{page_prefix}: {detail}")
+
+                row_ok = base_row.copy()
+                row_ok["estado"] = "OK"
+                row_ok["importados"] = import_result.get("imported_count", 0)
+                row_ok["omitidos"] = import_result.get("skipped_count", 0)
+                row_ok["mensaje"] = import_result.get("message", "Importado")
+                page_details.append(row_ok)
+
+            if had_success:
+                successful_files += 1
+            else:
+                failed_files += 1
 
         except Exception as exc:
             failed_files += 1
@@ -427,6 +474,7 @@ def _process_bulk_pdf_upload(
         "matutino_files": turno_counter["matutino"],
         "nocturno_files": turno_counter["nocturno"],
         "errors": errors,
+        "page_details": page_details,
     }
 
 
@@ -533,19 +581,32 @@ def _import_to_db(
             }
 
             # 1. Buscar o crear docente
-            numero_empleado = result.numero_empleado
-            docente = session.query(Docente).filter_by(
-                numero_empleado=numero_empleado
-            ).first()
+            numero_empleado = (result.numero_empleado or "").strip()
+            nombre_completo = (result.docente_nombre or "").strip()
+            partes = [p for p in nombre_completo.split() if p]
+            nombre = partes[0] if partes else "Docente"
+            apellidos_tokens = partes[1:]
+            apellido_paterno = apellidos_tokens[0] if apellidos_tokens else ""
+            apellido_materno = " ".join(apellidos_tokens[1:]) if len(apellidos_tokens) > 1 else ""
+            apellidos = " ".join(apellidos_tokens)
+
+            docente = None
+            if numero_empleado:
+                docente = session.query(Docente).filter_by(numero_empleado=numero_empleado).first()
+
+            # Fallback por nombre completo cuando el PDF no incluye clave de empleado.
+            if not docente and nombre and apellidos:
+                docente = (
+                    session.query(Docente)
+                    .filter(Docente.nombre == nombre, Docente.apellidos == apellidos)
+                    .first()
+                )
+                if docente:
+                    numero_empleado = docente.numero_empleado
 
             if not docente:
-                nombre_completo = (result.docente_nombre or "").strip()
-                partes = [p for p in nombre_completo.split() if p]
-                nombre = partes[0] if partes else "Docente"
-                apellidos_tokens = partes[1:]
-                apellido_paterno = apellidos_tokens[0] if apellidos_tokens else ""
-                apellido_materno = " ".join(apellidos_tokens[1:]) if len(apellidos_tokens) > 1 else ""
-                apellidos = " ".join(apellidos_tokens)
+                if not numero_empleado:
+                    numero_empleado = _fallback_numero_empleado(nombre_completo, result.turno or "")
 
                 if (result.turno or "").lower() == "nocturno":
                     horario_entrada = "18:00"
@@ -682,6 +743,23 @@ def _import_to_db(
             "imported_count": 0,
             "errors": [str(e)],
         }
+
+
+def _normalize_docente_token(value: str) -> str:
+    """Normaliza texto para generar identificadores estables."""
+    normalized = unicodedata.normalize("NFKD", value or "")
+    normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    normalized = normalized.upper()
+    normalized = re.sub(r"[^A-Z0-9]+", "", normalized)
+    return normalized
+
+
+def _fallback_numero_empleado(docente_nombre: str, turno: str) -> str:
+    """Genera un número de empleado sintético cuando el PDF no lo trae."""
+    base = _normalize_docente_token(docente_nombre)[:16] or "DOCENTE"
+    scope = _normalize_docente_token(turno)[:6] or "GEN"
+    digest = uuid.uuid5(uuid.NAMESPACE_DNS, f"{base}|{scope}").hex[:8].upper()
+    return f"AUTO{base}{digest}"[:32]
 
 
 if __name__ == "__main__":

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from datetime import time
+import os
 from pathlib import Path
+from tempfile import gettempdir
 from typing import Iterator
 
 from sqlalchemy import create_engine, select
@@ -12,10 +14,32 @@ from .models import Base, Usuario, Turno, HoraClase
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-DATA_DIR = BASE_DIR / "data"
-DB_PATH = DATA_DIR / "campusly.db"
+DEFAULT_DB_PATH = BASE_DIR / "data" / "campusly.db"
 
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+def _resolve_db_path() -> Path:
+    candidates = []
+
+    env_path = os.environ.get("CAMPUSLY_DB_PATH")
+    if env_path:
+        candidates.append(Path(env_path).expanduser())
+
+    candidates.append(DEFAULT_DB_PATH)
+    candidates.append(Path(gettempdir()) / "campusly.db")
+
+    for candidate in candidates:
+        try:
+            candidate.parent.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            continue
+
+        if candidate.parent.exists() and os.access(candidate.parent, os.W_OK):
+            return candidate
+
+    return Path(gettempdir()) / "campusly.db"
+
+
+DB_PATH = _resolve_db_path()
 
 engine = create_engine(
     f"sqlite:///{DB_PATH}",
@@ -34,7 +58,6 @@ SessionLocal = sessionmaker(
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_docentes_columns()
-    _ensure_asistencias_period_columns()
     _initialize_turnos_y_horas()
 
 
@@ -69,37 +92,6 @@ def _ensure_docentes_columns() -> None:
                 ifnull(apellido_paterno, '') = ''
                 AND ifnull(apellido_materno, '') = ''
                 AND ifnull(apellidos, '') <> ''
-            """
-        )
-
-
-def _ensure_asistencias_period_columns() -> None:
-    """Agrega y rellena anio/cuatrimestre para historial académico en asistencias."""
-    with engine.begin() as connection:
-        columns = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(asistencias)").fetchall()}
-
-        if "anio" not in columns:
-            connection.exec_driver_sql("ALTER TABLE asistencias ADD COLUMN anio INTEGER")
-        if "cuatrimestre" not in columns:
-            connection.exec_driver_sql("ALTER TABLE asistencias ADD COLUMN cuatrimestre INTEGER")
-
-        # Backfill histórico con base en la fecha del registro.
-        connection.exec_driver_sql(
-            """
-            UPDATE asistencias
-            SET anio = CAST(strftime('%Y', fecha) AS INTEGER)
-            WHERE anio IS NULL
-            """
-        )
-        connection.exec_driver_sql(
-            """
-            UPDATE asistencias
-            SET cuatrimestre = CASE
-                WHEN CAST(strftime('%m', fecha) AS INTEGER) BETWEEN 1 AND 4 THEN 1
-                WHEN CAST(strftime('%m', fecha) AS INTEGER) BETWEEN 5 AND 8 THEN 2
-                ELSE 3
-            END
-            WHERE cuatrimestre IS NULL
             """
         )
 
