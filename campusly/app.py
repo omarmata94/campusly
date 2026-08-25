@@ -205,24 +205,40 @@ def render_home_dashboard(user: dict) -> None:
     with c4:
         st.markdown(metric_card("Horarios asignados", totals["horarios_asignados"], "Carga académica", "primary"), unsafe_allow_html=True)
 
-    left, right = st.columns([1.05, 1.4], gap="large")
+    if totals["docentes_sin_horario"] > 0 and user.get("rol") == "Administrador":
+        st.warning(
+            f"Hay {totals['docentes_sin_horario']} docente(s) activo(s) sin horario asignado. "
+            "Te conviene revisarlo en Asignar Horarios."
+        )
+    elif totals["asistencias_hoy"] == 0:
+        st.info("Todavía no hay escaneos del día. El flujo está listo para iniciar asistencia.")
+    else:
+        st.success("Operación estable: ya hay actividad registrada hoy.")
+
+    left, right = st.columns([1.05, 1.25], gap="large")
 
     with left:
         st.markdown(
             """
             <div class="content-card reveal-card">
-                <h3 style="margin:0;">Acciones rápidas</h3>
-                <p class="soft-note" style="margin-top:0.35rem;">Navega a los módulos más usados sin pasar por el menú lateral.</p>
+                <h3 style="margin:0;">Acción principal</h3>
+                <p class="soft-note" style="margin-top:0.35rem;">Comienza el día con el registro de asistencia.</p>
             </div>
             """,
             unsafe_allow_html=True,
         )
+        st.page_link("pages/2_Escaner_QR.py", label="📷 Escanear QR ahora", use_container_width=True)
+
+        st.markdown("### Accesos frecuentes")
+        st.caption("Los módulos más usados sin saturar la pantalla.")
 
         if user.get("rol") == "Administrador":
             quick_actions = [
                 ("/Escaner_QR", "📷", "Escáner QR", "Registrar asistencia en tiempo real", "operacion"),
                 ("/Cargar_Horarios", "📅", "Cargar Horarios", "Importación PDF individual o masiva", "operacion"),
                 ("/Asignar_Horarios", "🗂️", "Asignar Horarios", "Vincular docentes y bloques", "operacion"),
+            ]
+            extra_actions = [
                 ("/Reportes", "📊", "Reportes", "Indicadores por periodo y estatus", "analisis"),
                 ("/Tablero", "📈", "Tablero", "Vista global de desempeño", "analisis"),
                 ("/Usuarios", "👥", "Usuarios", "Gestión de accesos y roles", "administracion"),
@@ -232,48 +248,31 @@ def render_home_dashboard(user: dict) -> None:
                 ("/Escaner_QR", "📷", "Escáner QR", "Registrar asistencia en tiempo real", "operacion"),
                 ("/Cargar_Horarios", "📅", "Cargar Horarios", "Importación PDF individual o masiva", "operacion"),
                 ("/Asistencias", "✅", "Asistencias", "Consulta y seguimiento diario", "operacion"),
+            ]
+            extra_actions = [
                 ("/Reportes", "📊", "Reportes", "Métricas y exportables", "analisis"),
             ]
 
         _render_quick_action_cards(quick_actions)
 
-        st.markdown(
-            f"""
-            <div class="content-card reveal-card" style="margin-top:0.4rem;">
-                <h3 style="margin:0;">Estado del sistema</h3>
-                <p class="soft-note" style="margin-top:0.45rem;">Último escaneo: {totals['ultimo_registro']}</p>
-                <p class="soft-note" style="margin:0.2rem 0 0 0;">Docentes sin horario asignado: <strong>{totals['docentes_sin_horario']}</strong></p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        with st.expander("Ver más módulos"):
+            _render_quick_action_cards(extra_actions)
 
     with right:
-        st.markdown(
-            """
-            <div class="content-card reveal-card">
-                <h3 style="margin:0;">Actividad reciente</h3>
-                <p class="soft-note" style="margin-top:0.35rem;">Últimos escaneos registrados en el sistema.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
+        activity_tab, status_tab = st.tabs(["Actividad", "Estado"])
         recent_df = _home_recent_activity(limit=10)
-        if recent_df.empty:
-            st.info("Aún no hay asistencias registradas. Usa Escáner QR para comenzar.")
-        else:
-            st.dataframe(styled_attendance_table(recent_df), use_container_width=True, hide_index=True)
+        with activity_tab:
+            st.caption("Últimos escaneos registrados en el sistema.")
+            if recent_df.empty:
+                st.info("Aún no hay asistencias registradas. Usa Escáner QR para comenzar.")
+            else:
+                st.dataframe(styled_attendance_table(recent_df), use_container_width=True, hide_index=True)
 
-    if totals["docentes_sin_horario"] > 0 and user.get("rol") == "Administrador":
-        st.warning(
-            f"Hay {totals['docentes_sin_horario']} docente(s) activo(s) sin horario asignado. "
-            "Te conviene revisarlo en Asignar Horarios."
-        )
-    elif totals["asistencias_hoy"] == 0:
-        st.info("Todavía no hay escaneos del día. El flujo está listo para iniciar asistencia.")
-    else:
-        st.success("Inicio actualizado correctamente con actividad operativa del día.")
+        with status_tab:
+            s1, s2 = st.columns(2)
+            s1.metric("Docentes sin horario", totals["docentes_sin_horario"])
+            s2.metric("Fecha operativa", totals["fecha"])
+            st.caption(f"Último escaneo: {totals['ultimo_registro']}")
 
 
 def main() -> None:
