@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from database.db import get_session
 from database.models import Docente, DocenteHoraClase, HoraClase, Turno
+from services.time_utils import current_academic_period
 
 
 @dataclass
@@ -27,21 +28,6 @@ class ImportResult:
 
 class HorarioImportService:
     """Servicio para importar horarios de docentes desde archivos."""
-
-    @staticmethod
-    def _has_schedule_conflict(
-        session, docente_id: int, turno_id: int, numero_hora: int, dia_semana: int
-    ) -> bool:
-        """Verifica si el docente ya tiene una clase en ese horario/día."""
-        existing = session.scalar(
-            select(DocenteHoraClase).where(
-                DocenteHoraClase.docente_id == docente_id,
-                DocenteHoraClase.turno_id == turno_id,
-                DocenteHoraClase.numero_hora == numero_hora,
-                DocenteHoraClase.dia_semana == dia_semana,
-            )
-        )
-        return existing is not None
 
     @staticmethod
     def validate_file(file_content: bytes) -> tuple[bool, str]:
@@ -74,6 +60,7 @@ class HorarioImportService:
         imported_count = 0
         skipped_count = 0
         errors = []
+        anio, cuatrimestre = current_academic_period()
 
         with get_session() as session:
             # Mapear día de semana a número
@@ -133,7 +120,7 @@ class HorarioImportService:
                         skipped_count += 1
                         continue
 
-                    # Verificar si ya existe exactamente
+                    # Verificar si ya existe
                     existing = session.scalar(
                         select(DocenteHoraClase).where(
                             DocenteHoraClase.docente_id == docente.id,
@@ -141,21 +128,12 @@ class HorarioImportService:
                             DocenteHoraClase.hora_clase_id == hora_clase.id,
                             DocenteHoraClase.dia_semana == dia_numero,
                             DocenteHoraClase.salon == salon,
+                            DocenteHoraClase.anio == anio,
+                            DocenteHoraClase.cuatrimestre == cuatrimestre,
                         )
                     )
 
                     if existing:
-                        skipped_count += 1
-                        continue
-
-                    # Verificar conflictos horarios (misma hora/día)
-                    if HorarioImportService._has_schedule_conflict(
-                        session, docente.id, turno.id, numero_hora, dia_numero
-                    ):
-                        errors.append(
-                            f"Conflicto: {docente.nombre} ya tiene clase en Hora {numero_hora} "
-                            f"el {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'][dia_numero]}"
-                        )
                         skipped_count += 1
                         continue
 
@@ -166,6 +144,8 @@ class HorarioImportService:
                         hora_clase_id=hora_clase.id,
                         numero_hora=numero_hora,
                         dia_semana=dia_numero,
+                        anio=anio,
+                        cuatrimestre=cuatrimestre,
                         salon=salon,
                         grupo=grupo,
                     )
@@ -192,12 +172,19 @@ class HorarioImportService:
         from sqlalchemy import delete
 
         with get_session() as session:
+            anio, cuatrimestre = current_academic_period()
             docente = session.scalar(
                 select(Docente).where(Docente.numero_empleado == numero_empleado)
             )
             if not docente:
                 return False
 
-            session.execute(delete(DocenteHoraClase).where(DocenteHoraClase.docente_id == docente.id))
+            session.execute(
+                delete(DocenteHoraClase).where(
+                    DocenteHoraClase.docente_id == docente.id,
+                    DocenteHoraClase.anio == anio,
+                    DocenteHoraClase.cuatrimestre == cuatrimestre,
+                )
+            )
             session.commit()
             return True

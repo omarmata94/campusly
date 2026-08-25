@@ -16,7 +16,7 @@ from sqlalchemy import select
 
 from database.db import get_session
 from database.models import Asistencia, Docente, DocenteHoraClase, HoraClase
-from services.time_utils import current_time_local, today_local
+from services.time_utils import current_academic_period, current_time_local, today_local
 
 
 @dataclass
@@ -75,9 +75,8 @@ class ScannerService:
     @staticmethod
     def get_docentes_for_turno_hora_salon(turno: str, numero_hora: int, salon: str) -> list[DocenteHoraClase]:
         """Obtiene docentes asignados a un turno, hora y salón específicos."""
+        anio, cuatrimestre = current_academic_period()
         with get_session() as session:
-            from datetime import datetime
-
             today = today_local()
             day_of_week = today.weekday()
 
@@ -87,6 +86,8 @@ class ScannerService:
                     DocenteHoraClase.numero_hora == numero_hora,
                     DocenteHoraClase.salon == salon,
                     DocenteHoraClase.dia_semana == day_of_week,
+                    DocenteHoraClase.anio == anio,
+                    DocenteHoraClase.cuatrimestre == cuatrimestre,
                 )
             ).scalars().all()
 
@@ -132,6 +133,7 @@ class ScannerService:
         qr_uuid = ScannerService._normalize_payload(qr_payload)
         today = today_local()
         current_time = hora_registro or current_time_local()
+        anio, cuatrimestre = current_academic_period()
 
         with get_session() as session:
             # Obtener docente del QR
@@ -161,6 +163,8 @@ class ScannerService:
                         DocenteHoraClase.docente_id == docente.id,
                         DocenteHoraClase.hora_clase_id == hora_clase.id,
                         DocenteHoraClase.dia_semana == day_of_week,
+                            DocenteHoraClase.anio == anio,
+                            DocenteHoraClase.cuatrimestre == cuatrimestre,
                     )
                 )
                 if not docente_hora:
@@ -177,6 +181,8 @@ class ScannerService:
                         DocenteHoraClase.hora_clase_id == hora_clase.id,
                         DocenteHoraClase.salon == salon,
                         DocenteHoraClase.dia_semana == day_of_week,
+                            DocenteHoraClase.anio == anio,
+                            DocenteHoraClase.cuatrimestre == cuatrimestre,
                     )
                 )
                 if not docente_hora:

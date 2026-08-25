@@ -57,7 +57,17 @@ class Docente(Base):
 
 class DocenteHoraClase(Base):
     __tablename__ = "docente_horas_clase"
-    __table_args__ = (UniqueConstraint("docente_id", "turno_id", "numero_hora", "dia_semana", name="uq_docente_hora_dia"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "docente_id",
+            "turno_id",
+            "numero_hora",
+            "dia_semana",
+            "anio",
+            "cuatrimestre",
+            name="uq_docente_hora_periodo_dia",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     docente_id: Mapped[int] = mapped_column(ForeignKey("docentes.id"), nullable=False, index=True)
@@ -65,6 +75,8 @@ class DocenteHoraClase(Base):
     hora_clase_id: Mapped[int] = mapped_column(ForeignKey("horas_clase.id"), nullable=False, index=True)
     numero_hora: Mapped[int] = mapped_column(Integer, nullable=False)
     dia_semana: Mapped[int] = mapped_column(Integer, nullable=False)
+    anio: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cuatrimestre: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     salon: Mapped[str] = mapped_column(String(20), nullable=False)
     grupo: Mapped[str] = mapped_column(String(50), nullable=False)
 

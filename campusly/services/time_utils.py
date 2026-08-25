@@ -35,3 +35,8 @@ def cuatrimestre_for_date(value: date) -> int:
     if month <= 8:
         return 2
     return 3
+
+
+def current_academic_period() -> tuple[int, int]:
+    current_date = today_local()
+    return current_date.year, cuatrimestre_for_date(current_date)

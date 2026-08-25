@@ -8,7 +8,7 @@ from sqlalchemy.exc import OperationalError
 from database.db import get_session, has_users, init_db
 from database.models import Asistencia, Docente, DocenteHoraClase
 from services.auth import AuthService
-from services.time_utils import today_local
+from services.time_utils import current_academic_period, today_local
 from services.ui import APP_NAME, configure_page, logout_button, metric_card, page_hero, render_sidebar, styled_attendance_table
 
 
@@ -78,11 +78,17 @@ def render_login() -> None:
 
 def _home_totals() -> dict[str, int | str]:
     today = today_local()
+    anio, cuatrimestre = current_academic_period()
     with get_session() as session:
         docentes_activos = session.scalar(
             select(func.count(Docente.id)).where(Docente.activo.is_(True))
         ) or 0
-        horarios_asignados = session.scalar(select(func.count(DocenteHoraClase.id))) or 0
+        horarios_asignados = session.scalar(
+            select(func.count(DocenteHoraClase.id)).where(
+                DocenteHoraClase.anio == anio,
+                DocenteHoraClase.cuatrimestre == cuatrimestre,
+            )
+        ) or 0
         asistencias_hoy = session.scalar(
             select(func.count(Asistencia.id)).where(Asistencia.fecha == today)
         ) or 0
@@ -93,7 +99,10 @@ def _home_totals() -> dict[str, int | str]:
             )
         ) or 0
         docentes_con_horario = session.scalar(
-            select(func.count(func.distinct(DocenteHoraClase.docente_id)))
+            select(func.count(func.distinct(DocenteHoraClase.docente_id))).where(
+                DocenteHoraClase.anio == anio,
+                DocenteHoraClase.cuatrimestre == cuatrimestre,
+            )
         ) or 0
         try:
             ultimo_registro = session.execute(

@@ -11,6 +11,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from .models import Base, Usuario, Turno, HoraClase
+from services.time_utils import current_academic_period
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -58,6 +59,7 @@ SessionLocal = sessionmaker(
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_docentes_columns()
+    _ensure_docente_horas_period_columns()
     _ensure_asistencias_columns()
     _initialize_turnos_y_horas()
 
@@ -95,6 +97,55 @@ def _ensure_docentes_columns() -> None:
                 AND ifnull(apellidos, '') <> ''
             """
         )
+
+
+def _ensure_docente_horas_period_columns() -> None:
+    current_year, current_cuatrimestre = current_academic_period()
+    with engine.begin() as connection:
+        columns = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(docente_horas_clase)").fetchall()}
+
+        if "anio" in columns and "cuatrimestre" in columns:
+            return
+
+        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        connection.exec_driver_sql("DROP TABLE IF EXISTS docente_horas_clase_new")
+        connection.exec_driver_sql(
+            """
+            CREATE TABLE docente_horas_clase_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                docente_id INTEGER NOT NULL,
+                turno_id INTEGER NOT NULL,
+                hora_clase_id INTEGER NOT NULL,
+                numero_hora INTEGER NOT NULL,
+                dia_semana INTEGER NOT NULL,
+                anio INTEGER NOT NULL,
+                cuatrimestre INTEGER NOT NULL,
+                salon VARCHAR(20) NOT NULL,
+                grupo VARCHAR(50) NOT NULL,
+                UNIQUE (docente_id, turno_id, numero_hora, dia_semana, anio, cuatrimestre),
+                FOREIGN KEY(docente_id) REFERENCES docentes (id),
+                FOREIGN KEY(turno_id) REFERENCES turnos (id),
+                FOREIGN KEY(hora_clase_id) REFERENCES horas_clase (id)
+            )
+            """
+        )
+        connection.exec_driver_sql(
+            f"""
+            INSERT INTO docente_horas_clase_new (
+                id, docente_id, turno_id, hora_clase_id, numero_hora, dia_semana, anio, cuatrimestre, salon, grupo
+            )
+            SELECT
+                id, docente_id, turno_id, hora_clase_id, numero_hora, dia_semana,
+                {current_year}, {current_cuatrimestre}, salon, grupo
+            FROM docente_horas_clase
+            """
+        )
+        connection.exec_driver_sql("DROP TABLE docente_horas_clase")
+        connection.exec_driver_sql("ALTER TABLE docente_horas_clase_new RENAME TO docente_horas_clase")
+        connection.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_docente_horas_clase_docente_id ON docente_horas_clase (docente_id)")
+        connection.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_docente_horas_clase_turno_id ON docente_horas_clase (turno_id)")
+        connection.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_docente_horas_clase_hora_clase_id ON docente_horas_clase (hora_clase_id)")
+        connection.exec_driver_sql("PRAGMA foreign_keys=ON")
 
 
 def _ensure_asistencias_columns() -> None:

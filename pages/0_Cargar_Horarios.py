@@ -676,6 +676,7 @@ def _import_to_db(
                 old_assignments = (
                     session.query(DocenteHoraClase)
                     .filter_by(docente_id=docente.id, turno_id=turno.id)
+                    .filter_by(anio=anio, cuatrimestre=cuatrimestre)
                     .all()
                 )
                 for assignment in old_assignments:
@@ -718,6 +719,8 @@ def _import_to_db(
                             turno_id=turno.id,
                             numero_hora=entry.numero_hora,
                             dia_semana=dia_numero,
+                            anio=anio,
+                            cuatrimestre=cuatrimestre,
                         )
                         .first()
                     )
@@ -733,6 +736,8 @@ def _import_to_db(
                         hora_clase_id=hora_clase.id,
                         numero_hora=entry.numero_hora,
                         dia_semana=dia_numero,
+                        anio=anio,
+                        cuatrimestre=cuatrimestre,
                         salon=entry.salon,
                         grupo=entry.grupo_codigo,
                     )

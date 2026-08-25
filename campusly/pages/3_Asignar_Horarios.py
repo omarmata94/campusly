@@ -6,10 +6,10 @@ from sqlalchemy import select
 
 from database.db import get_session, init_db
 from database.models import Docente, Turno, HoraClase, DocenteHoraClase
+from services.time_utils import current_academic_period
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar
 
 
-@st.cache_data(ttl=3600)
 def _get_docentes() -> dict[str, int]:
     """Obtiene docentes activos."""
     with get_session() as session:
@@ -21,7 +21,6 @@ def _get_docentes() -> dict[str, int]:
         return {f"{d.numero_empleado} - {d.nombre} {d.apellidos}".strip(): d.id for d in docentes}
 
 
-@st.cache_data(ttl=3600)
 def _get_turnos() -> dict[str, int]:
     """Obtiene turnos disponibles."""
     with get_session() as session:
@@ -29,7 +28,6 @@ def _get_turnos() -> dict[str, int]:
         return {t.nombre: t.id for t in turnos}
 
 
-@st.cache_data(ttl=3600)
 def _get_horas_clase(turno_id: int) -> dict[str, int]:
     """Obtiene horas clase para un turno."""
     with get_session() as session:
@@ -42,26 +40,32 @@ def _get_horas_clase(turno_id: int) -> dict[str, int]:
 
 
 def _get_existing_assignments(docente_id: int) -> list[dict]:
-    """Obtiene asignaciones existentes de un docente con JOIN para evitar N+1."""
+    """Obtiene asignaciones existentes de un docente."""
+    anio, cuatrimestre = current_academic_period()
     with get_session() as session:
         assignments = session.execute(
-            select(DocenteHoraClase, Turno.nombre)
-            .join(Turno, DocenteHoraClase.turno_id == Turno.id)
-            .where(DocenteHoraClase.docente_id == docente_id)
+            select(DocenteHoraClase)
+            .where(
+                DocenteHoraClase.docente_id == docente_id,
+                DocenteHoraClase.anio == anio,
+                DocenteHoraClase.cuatrimestre == cuatrimestre,
+            )
             .order_by(DocenteHoraClase.turno_id, DocenteHoraClase.numero_hora)
-        ).all()
+        ).scalars().all()
         
         result = []
-        dia_semana_names = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
-        for a, turno_nombre in assignments:
-            result.append({
-                "id": a.id,
-                "turno": turno_nombre or "N/A",
-                "hora": a.numero_hora,
-                "salon": a.salon,
-                "grupo": a.grupo,
-                "dia_semana": dia_semana_names[a.dia_semana] if a.dia_semana < 5 else "Sábado",
-            })
+        for a in assignments:
+            with get_session() as s2:
+                turno = s2.get(Turno, a.turno_id)
+                dia_semana_names = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+                result.append({
+                    "id": a.id,
+                    "turno": turno.nombre if turno else "N/A",
+                    "hora": a.numero_hora,
+                    "salon": a.salon,
+                    "grupo": a.grupo,
+                    "dia_semana": dia_semana_names[a.dia_semana] if a.dia_semana < 5 else "Sábado",
+                })
         return result
 
 
@@ -85,6 +89,9 @@ def main() -> None:
     logout_button()
 
     page_hero("Asignar Horarios", "Gestiona la asignación de docentes a turnos, horas y salones.")
+
+    anio, cuatrimestre = current_academic_period()
+    st.caption(f"Periodo operativo actual: {anio}-{cuatrimestre}")
 
     docentes = _get_docentes()
     if not docentes:
@@ -156,6 +163,8 @@ def main() -> None:
                         DocenteHoraClase.turno_id == turno_id,
                         DocenteHoraClase.hora_clase_id == hora_clase_id,
                         DocenteHoraClase.dia_semana == dia_numero,
+                        DocenteHoraClase.anio == anio,
+                        DocenteHoraClase.cuatrimestre == cuatrimestre,
                         DocenteHoraClase.salon == salon,
                     )
                 )
@@ -166,6 +175,8 @@ def main() -> None:
                         hora_clase_id=hora_clase_id,
                         numero_hora=int(hora_label.split()[1]),
                         dia_semana=dia_numero,
+                        anio=anio,
+                        cuatrimestre=cuatrimestre,
                         salon=salon,
                         grupo=grupo,
                     )

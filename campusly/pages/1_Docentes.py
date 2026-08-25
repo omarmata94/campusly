@@ -14,6 +14,7 @@ from sqlalchemy.exc import IntegrityError
 
 from database.db import get_session, init_db
 from database.models import Docente, DocenteHoraClase, Turno
+from services.time_utils import current_academic_period
 from services.qr_generator import BadgeGenerator, QRGenerator
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar, styled_attendance_table
 
@@ -263,12 +264,18 @@ def _build_identified_qr_png(qr_path: Path, numero_empleado: str, nombre_complet
 
 def _build_turno_qr_zip(turno_nombre: str) -> dict:
     """Genera un ZIP con los QRs de docentes activos asignados a un turno."""
+    anio, cuatrimestre = current_academic_period()
     with get_session() as session:
         docentes = session.execute(
             select(Docente)
             .join(DocenteHoraClase, DocenteHoraClase.docente_id == Docente.id)
             .join(Turno, Turno.id == DocenteHoraClase.turno_id)
-            .where(Turno.nombre == turno_nombre, Docente.activo.is_(True))
+            .where(
+                Turno.nombre == turno_nombre,
+                Docente.activo.is_(True),
+                DocenteHoraClase.anio == anio,
+                DocenteHoraClase.cuatrimestre == cuatrimestre,
+            )
             .distinct()
             .order_by(Docente.nombre, Docente.apellidos)
         ).scalars().all()
