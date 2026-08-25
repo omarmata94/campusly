@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 from database.db import get_session
@@ -53,6 +54,50 @@ def _load_custom_options() -> tuple[list[tuple[str, int]], list[str], list[str],
 
     docente_options = [(f"{docente.numero_empleado} - {docente.nombre} {docente.apellidos}".strip(), docente.id) for docente in docentes]
     return docente_options, [turno for turno in turnos if turno], [departamento for departamento in departamentos if departamento], [int(year) for year in years if year is not None]
+
+
+def _chart_style(fig):
+    fig.update_layout(
+        template="plotly_white",
+        height=340,
+        margin=dict(l=12, r=12, t=24, b=12),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="#FFFFFF",
+        font=dict(family="Inter, sans-serif", color="#0F172A"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+    )
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(gridcolor="#E2E8F0", zeroline=False)
+    return fig
+
+
+def _render_charts(df: pd.DataFrame) -> None:
+    if df.empty:
+        return
+
+    st.markdown("### Resumen visual")
+    chart_cols = st.columns(3)
+
+    if "fecha" in df.columns:
+        daily_df = df.groupby("fecha", as_index=False).size().rename(columns={"size": "registros"})
+        if not daily_df.empty:
+            fig_daily = px.line(daily_df, x="fecha", y="registros", markers=True, title="Registros por fecha")
+            fig_daily.update_traces(line=dict(color="#2563EB", width=3), marker=dict(size=8, color="#2563EB"))
+            chart_cols[0].plotly_chart(_chart_style(fig_daily), use_container_width=True)
+
+    if "estatus" in df.columns:
+        status_df = df.groupby("estatus", as_index=False).size().rename(columns={"size": "registros"}).sort_values("registros", ascending=False)
+        if not status_df.empty:
+            fig_status = px.bar(status_df, x="estatus", y="registros", color="estatus", title="Por estatus", color_discrete_sequence=["#2563EB", "#10B981", "#F59E0B", "#EF4444"])
+            fig_status.update_layout(showlegend=False)
+            chart_cols[1].plotly_chart(_chart_style(fig_status), use_container_width=True)
+
+    if "departamento" in df.columns:
+        dept_df = df.groupby("departamento", as_index=False).size().rename(columns={"size": "registros"}).sort_values("registros", ascending=False)
+        if not dept_df.empty:
+            fig_dept = px.bar(dept_df, x="departamento", y="registros", color="registros", title="Por departamento", color_continuous_scale=["#DBEAFE", "#2563EB"])
+            fig_dept.update_layout(showlegend=False)
+            chart_cols[2].plotly_chart(_chart_style(fig_dept), use_container_width=True)
 
 
 def main() -> None:
@@ -132,6 +177,7 @@ def main() -> None:
         c2.metric("Docentes únicos", df["docente"].nunique() if "docente" in df.columns else 0)
         c3.metric("Días con registros", df["fecha"].nunique() if "fecha" in df.columns else 0)
         st.dataframe(styled_attendance_table(df), use_container_width=True)
+        _render_charts(df)
 
     c1, c2 = st.columns(2)
     csv_data = ReportService.export_csv(df)
