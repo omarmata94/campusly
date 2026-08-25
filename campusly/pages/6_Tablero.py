@@ -114,32 +114,33 @@ def main() -> None:
         else:
             st.dataframe(styled_attendance_table(latest_df), use_container_width=True, height=360)
 
-    st.markdown("### Auditoría reciente")
-    a1, a2, a3 = st.columns(3)
-    a1.metric("Eventos 7 días", audit_total)
-    a2.metric("Acciones distintas", len(audit_actions_df))
-    a3.metric("Últimos eventos", len(audit_df))
+    if user["rol"] == "Administrador":
+        st.markdown("### Auditoría reciente")
+        a1, a2, a3 = st.columns(3)
+        a1.metric("Eventos 7 días", audit_total)
+        a2.metric("Acciones distintas", len(audit_actions_df))
+        a3.metric("Últimos eventos", len(audit_df))
 
-    if audit_actions_df.empty:
-        st.info("Todavía no hay eventos de auditoría.")
-    else:
-        audit_chart = px.bar(
-            audit_actions_df,
-            x="accion",
-            y="total",
-            color="total",
-            color_continuous_scale=["#E0F2FE", "#0284C7"],
-            template="plotly_white",
-        )
-        audit_chart.update_layout(height=320, showlegend=False, margin=dict(l=12, r=12, t=24, b=12), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#FFFFFF", font=dict(family="Inter, sans-serif", color="#0F172A"))
-        audit_chart.update_xaxes(showgrid=False)
-        audit_chart.update_yaxes(gridcolor="#E2E8F0", zeroline=False)
-        st.plotly_chart(audit_chart, use_container_width=True)
+        if audit_actions_df.empty:
+            st.info("Todavía no hay eventos de auditoría.")
+        else:
+            audit_chart = px.bar(
+                audit_actions_df,
+                x="accion",
+                y="total",
+                color="total",
+                color_continuous_scale=["#E0F2FE", "#0284C7"],
+                template="plotly_white",
+            )
+            audit_chart.update_layout(height=320, showlegend=False, margin=dict(l=12, r=12, t=24, b=12), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#FFFFFF", font=dict(family="Inter, sans-serif", color="#0F172A"))
+            audit_chart.update_xaxes(showgrid=False)
+            audit_chart.update_yaxes(gridcolor="#E2E8F0", zeroline=False)
+            st.plotly_chart(audit_chart, use_container_width=True)
 
-    if not audit_df.empty:
-        audit_view = audit_df.copy()
-        audit_view["fecha_evento"] = audit_view["fecha_evento"].dt.strftime("%Y-%m-%d %H:%M:%S")
-        st.dataframe(audit_view, use_container_width=True, hide_index=True)
+        if not audit_df.empty:
+            audit_view = audit_df.copy()
+            audit_view["fecha_evento"] = audit_view["fecha_evento"].dt.strftime("%Y-%m-%d %H:%M:%S")
+            st.dataframe(audit_view, use_container_width=True, hide_index=True)
 
 
 if __name__ == "__main__":
