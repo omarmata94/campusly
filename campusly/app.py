@@ -187,12 +187,38 @@ def _render_quick_action_cards(actions: list[tuple[str, str, str, str, str]]) ->
                 st.markdown(f"- {icon} {title}")
 
 
+def _home_hero_by_role(role: str) -> tuple[str, str]:
+    role_copy = {
+        "Administrador": (
+            "Centro de Control Académico",
+            "Supervisa operación, usuarios y métricas institucionales de asistencia docente.",
+        ),
+        "Prefecto": (
+            "Operación Diaria de Asistencias",
+            "Registra asistencias por QR y da seguimiento puntual a incidencias del turno.",
+        ),
+        "Consulta": (
+            "Panel de Seguimiento Docente",
+            "Consulta indicadores y reportes de asistencia con trazabilidad institucional.",
+        ),
+    }
+    return role_copy.get(
+        role,
+        (
+            "Panel principal",
+            "Resumen operativo del día, accesos rápidos y actividad reciente del sistema.",
+        ),
+    )
+
+
 def render_home_dashboard(user: dict) -> None:
     totals = _home_totals()
+    role = user.get("rol", "")
+    hero_title, hero_subtitle = _home_hero_by_role(role)
 
     page_hero(
-        f"Panel principal · {user['rol']}",
-        "Resumen operativo del día, accesos rápidos y actividad reciente del sistema.",
+        f"{hero_title} · {role or 'Usuario'}",
+        hero_subtitle,
     )
 
     c1, c2, c3, c4 = st.columns(4)
