@@ -378,7 +378,25 @@ def _process_bulk_pdf_upload(
                 tmp_path = tmp_file.name
 
             service = PDFHorarioImportService()
-            page_results, extraction_errors = service.import_all_from_pdf(tmp_path)
+            if hasattr(service, "import_all_from_pdf"):
+                page_results, extraction_errors = service.import_all_from_pdf(tmp_path)
+            else:
+                # Compatibilidad con despliegues que aún tengan el servicio anterior.
+                legacy_result = service.import_from_pdf(tmp_path)
+                legacy_ok, legacy_entries, legacy_errors = service.extractor.extract_from_pdf(tmp_path)
+                extraction_errors = list(legacy_errors or [])
+                page_results = []
+                if legacy_ok and legacy_entries and legacy_result.success:
+                    page_results.append(
+                        type("LegacyPayload", (), {
+                            "page_number": 1,
+                            "result": legacy_result,
+                            "entries": legacy_entries,
+                        })
+                    )
+                else:
+                    if legacy_result and not legacy_result.success:
+                        extraction_errors.append(legacy_result.message)
             for detail in extraction_errors:
                 errors.append(f"{uploaded_file.name}: {detail}")
 
