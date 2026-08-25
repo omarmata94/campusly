@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_NAME = "Sistema de Asistencia Docente mediante QR"
+APP_NAME = "SIAUT"
 APP_AUTHOR = "Ing. Omar Mata"
 
 
@@ -803,7 +803,7 @@ def render_sidebar(user: dict | None = None) -> None:
         )
 
 
-def page_hero(title: str, subtitle: str, eyebrow: str = "Campusly") -> None:
+def page_hero(title: str, subtitle: str, eyebrow: str = "SIAUT") -> None:
     st.markdown(
         f"""
         <div class="page-hero reveal-card">

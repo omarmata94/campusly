@@ -39,8 +39,8 @@ def _create_placeholder_logo(size: int = 180) -> Image.Image:
     draw.rounded_rectangle((8, 8, size - 8, size - 8), radius=28, outline=(255, 255, 255, 220), width=4)
     title_font = _load_font(48, bold=True)
     small_font = _load_font(18)
-    draw.text((size / 2, 62), "C", fill="white", anchor="mm", font=title_font)
-    draw.text((size / 2, 118), "Campusly", fill=(224, 235, 255), anchor="mm", font=small_font)
+    draw.text((size / 2, 62), "S", fill="white", anchor="mm", font=title_font)
+    draw.text((size / 2, 118), "SIAUT", fill=(224, 235, 255), anchor="mm", font=small_font)
     return image
 
 
