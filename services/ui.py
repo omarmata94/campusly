@@ -5,6 +5,7 @@ import streamlit as st
 
 
 APP_NAME = "SIAUT"
+APP_NAME_EXPANDED = "Sistema Integral de Asistencia UTC"
 APP_AUTHOR = "Ing. Omar Mata"
 
 
@@ -736,7 +737,7 @@ def render_sidebar(user: dict | None = None) -> None:
                                                     <img src="{logo_uri}" alt="Universidad Tecnologica Cadereyta" style="width:70px; height:70px; object-fit:contain; flex-shrink:0;">
                           <div>
                                                         <div class="brand-title" style="font-size: 1.05rem; margin:0;">Universidad Tecnológica Cadereyta</div>
-                            <div class="brand-subtitle">Asistencia docente</div>
+                            <div class="brand-subtitle">SIAUT · Sistema Integral de Asistencia UTC</div>
                           </div>
                         </div>
                         """,
@@ -751,7 +752,7 @@ def render_sidebar(user: dict | None = None) -> None:
                                                     <div class="brand-mark">UTC</div>
                           <div>
                                                         <div class="brand-title" style="font-size: 1.05rem;">Universidad Tecnológica Cadereyta</div>
-                            <div class="brand-subtitle">Asistencia docente</div>
+                            <div class="brand-subtitle">SIAUT · Sistema Integral de Asistencia UTC</div>
                           </div>
                         </div>
                       </div>
@@ -768,7 +769,7 @@ def render_sidebar(user: dict | None = None) -> None:
                                             <div class="brand-mark">UTC</div>
                       <div>
                                                 <div class="brand-title" style="font-size: 1.05rem;">Universidad Tecnológica Cadereyta</div>
-                        <div class="brand-subtitle">Asistencia docente</div>
+                        <div class="brand-subtitle">SIAUT · Sistema Integral de Asistencia UTC</div>
                       </div>
                     </div>
                   </div>
@@ -803,7 +804,7 @@ def render_sidebar(user: dict | None = None) -> None:
         )
 
 
-def page_hero(title: str, subtitle: str, eyebrow: str = "SIAUT") -> None:
+def page_hero(title: str, subtitle: str, eyebrow: str = f"SIAUT · {APP_NAME_EXPANDED}") -> None:
     st.markdown(
         f"""
         <div class="page-hero reveal-card">
