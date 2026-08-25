@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from database.db import get_session, init_db
 from database.models import Docente, Turno, HoraClase, DocenteHoraClase
+from services.audit import record_event
 from services.time_utils import current_academic_period
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar
 
@@ -69,13 +70,21 @@ def _get_existing_assignments(docente_id: int) -> list[dict]:
         return result
 
 
-def _delete_assignment(assignment_id: int) -> bool:
+def _delete_assignment(assignment_id: int, actor: str = "system") -> bool:
     """Elimina una asignación."""
     with get_session() as session:
         assignment = session.get(DocenteHoraClase, assignment_id)
         if assignment:
+            assignment_label = f"docente={assignment.docente_id}, turno={assignment.turno_id}, hora={assignment.numero_hora}"
             session.delete(assignment)
             session.commit()
+            record_event(
+                usuario=actor,
+                accion="eliminar",
+                entidad="DocenteHoraClase",
+                entidad_id=assignment_id,
+                descripcion=f"Asignación eliminada {assignment_label}",
+            )
             return True
         return False
 
@@ -112,7 +121,7 @@ def main() -> None:
                 st.write(f"**{assignment['turno']}** - Hora {assignment['hora']} - Salón {assignment['salon']} - Grupo {assignment['grupo']} - {assignment['dia_semana']}")
             with col2:
                 if st.button("❌ Eliminar", key=f"delete_{assignment['id']}", use_container_width=True):
-                    if _delete_assignment(assignment['id']):
+                    if _delete_assignment(assignment['id'], actor=str(user["usuario"])):
                         st.success("Asignación eliminada")
                         st.rerun()
 
@@ -165,9 +174,22 @@ def main() -> None:
                         DocenteHoraClase.dia_semana == dia_numero,
                         DocenteHoraClase.anio == anio,
                         DocenteHoraClase.cuatrimestre == cuatrimestre,
-                        DocenteHoraClase.salon == salon,
                     )
                 )
+                conflict_check = session.scalar(
+                    select(DocenteHoraClase).where(
+                        DocenteHoraClase.docente_id == docente_id,
+                        DocenteHoraClase.turno_id == turno_id,
+                        DocenteHoraClase.numero_hora == int(hora_label.split()[1]),
+                        DocenteHoraClase.dia_semana == dia_numero,
+                        DocenteHoraClase.anio == anio,
+                        DocenteHoraClase.cuatrimestre == cuatrimestre,
+                    )
+                )
+                if conflict_check:
+                    st.error(f"Ya existe una asignación para {dia_nombre} en esa hora y periodo.")
+                    st.stop()
+
                 if not existing_check:
                     new_assignment = DocenteHoraClase(
                         docente_id=docente_id,
@@ -185,6 +207,14 @@ def main() -> None:
             
             if success_count > 0:
                 session.commit()
+                record_event(
+                    usuario=str(user["usuario"]),
+                    accion="crear",
+                    entidad="DocenteHoraClase",
+                    entidad_id=docente_id,
+                    descripcion=f"Asignaciones guardadas docente={docente_id} turno={turno_label}",
+                    detalles={"anio": anio, "cuatrimestre": cuatrimestre, "dias": dias_semana, "salon": salon, "grupo": grupo, "registros": success_count},
+                )
                 st.success(f"✅ {success_count} asignación(es) guardada(s)")
                 st.rerun()
             else:

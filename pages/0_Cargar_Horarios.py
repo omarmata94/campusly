@@ -19,6 +19,7 @@ import streamlit as st
 
 from database.db import DB_PATH, init_db, get_session
 from database.models import Docente, DocenteHoraClase, HoraClase, ImportacionHorario, Turno
+from services.audit import record_event
 from services.pdf_horario_import import PDFHorarioImportService
 from services.time_utils import cuatrimestre_for_date, today_local
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar
@@ -762,6 +763,22 @@ def _import_to_db(
                 )
             )
             session.commit()
+
+            record_event(
+                usuario=usuario,
+                accion="importar",
+                entidad="DocenteHoraClase",
+                entidad_id=docente.id,
+                descripcion=f"Importación de horario {archivo_nombre}",
+                detalles={
+                    "turno": result.turno,
+                    "anio": anio,
+                    "cuatrimestre": cuatrimestre,
+                    "importados": imported_count,
+                    "omitidos": skipped_count,
+                    "clear_existing": clear_existing,
+                },
+            )
 
             return {
                 "success": True,

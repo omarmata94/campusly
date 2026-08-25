@@ -14,6 +14,7 @@ from sqlalchemy.exc import IntegrityError
 
 from database.db import get_session, init_db
 from database.models import Docente, DocenteHoraClase, Turno
+from services.audit import record_event
 from services.time_utils import current_academic_period
 from services.qr_generator import BadgeGenerator, QRGenerator
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar, styled_attendance_table
@@ -100,7 +101,7 @@ def _load_docente(docente_id: int) -> dict | None:
         }
 
 
-def _save_docente(data: dict, docente_id: int | None = None) -> None:
+def _save_docente(data: dict, docente_id: int | None = None, actor: str = "system") -> None:
     with get_session() as session:
         numero_empleado = data.get("numero_empleado", "").strip()
         puesto = data.get("puesto", "").strip()
@@ -118,6 +119,11 @@ def _save_docente(data: dict, docente_id: int | None = None) -> None:
 
         if not apellido_paterno or not apellido_materno:
             raise ValueError("Debes capturar apellido paterno y apellido materno.")
+
+        horario_entrada = data.get("horario_entrada", "").strip()
+        horario_salida = data.get("horario_salida", "").strip()
+        if horario_entrada >= horario_salida:
+            raise ValueError("El horario de entrada debe ser menor que el de salida.")
 
         payload = dict(data)
         payload["numero_empleado"] = numero_empleado
@@ -138,6 +144,7 @@ def _save_docente(data: dict, docente_id: int | None = None) -> None:
             session.add(docente)
             session.flush()
             QRGenerator.save_qr(docente.qr_uuid, docente.qr_uuid)
+            record_event(usuario=actor, accion="crear", entidad="Docente", entidad_id=docente.id, descripcion=f"Docente creado {docente.numero_empleado}")
         else:
             docente = session.get(Docente, docente_id)
             if docente is None:
@@ -148,15 +155,17 @@ def _save_docente(data: dict, docente_id: int | None = None) -> None:
             session.flush()
             if not (ROOT_DIR / "assets" / "qrs" / f"{docente.qr_uuid}.png").exists():
                 QRGenerator.save_qr(docente.qr_uuid, docente.qr_uuid)
+            record_event(usuario=actor, accion="actualizar", entidad="Docente", entidad_id=docente.id, descripcion=f"Docente actualizado {docente.numero_empleado}")
 
 
-def _delete_docente(docente_id: int) -> None:
+def _delete_docente(docente_id: int, actor: str = "system") -> None:
     with get_session() as session:
         docente = session.get(Docente, docente_id)
         if docente is None:
             raise ValueError("El docente no existe")
         docente.activo = False
         session.flush()
+        record_event(usuario=actor, accion="desactivar", entidad="Docente", entidad_id=docente.id, descripcion=f"Docente desactivado {docente.numero_empleado}")
 
 
 def _safe_filename(value: str) -> str:
@@ -362,7 +371,8 @@ def main() -> None:
                             "horario_entrada": horario_entrada_time.strftime("%H:%M"),
                             "horario_salida": horario_salida_time.strftime("%H:%M"),
                             "activo": activo,
-                        }
+                        },
+                        actor=str(user["usuario"]),
                     )
                     st.success("Docente registrado y QR generado.")
                     st.rerun()
@@ -418,6 +428,7 @@ def main() -> None:
                                 "activo": activo,
                             },
                             docente_id=docente["id"],
+                            actor=str(user["usuario"]),
                         )
                         st.success("Docente actualizado.")
                         st.rerun()
@@ -440,7 +451,7 @@ def main() -> None:
                 st.warning("Esta acción desactiva al docente para conservar el historial de asistencias.")
                 if st.button("Eliminar / desactivar", type="primary"):
                     try:
-                        _delete_docente(docente["id"])
+                        _delete_docente(docente["id"], actor=str(user["usuario"]))
                         st.success("Docente desactivado.")
                         st.rerun()
                     except Exception as exc:

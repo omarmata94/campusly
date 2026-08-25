@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 
 from database.db import get_session, init_db
 from database.models import Usuario
+from services.audit import record_event
 from services.auth import AuthService
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, render_sidebar, require_login
 
@@ -37,16 +38,17 @@ def _admin_count() -> int:
         return int(count or 0)
 
 
-def _reset_password(user_id: int, new_password: str) -> None:
+def _reset_password(user_id: int, new_password: str, actor: str) -> None:
     with get_session() as session:
         record = session.get(Usuario, user_id)
         if not record:
             raise ValueError("El usuario no existe")
         record.password_hash = AuthService.hash_password(new_password)
         session.flush()
+        record_event(usuario=actor, accion="actualizar", entidad="Usuario", entidad_id=record.id, descripcion=f"Contraseña restablecida {record.usuario}")
 
 
-def _update_role(user_id: int, new_role: str, current_user_id: int) -> None:
+def _update_role(user_id: int, new_role: str, current_user_id: int, actor: str) -> None:
     with get_session() as session:
         record = session.get(Usuario, user_id)
         if not record:
@@ -58,11 +60,13 @@ def _update_role(user_id: int, new_role: str, current_user_id: int) -> None:
         if record.rol == "Administrador" and new_role != "Administrador" and _admin_count() <= 1:
             raise ValueError("No puedes degradar al último administrador")
 
+        previous_role = record.rol
         record.rol = new_role
         session.flush()
+        record_event(usuario=actor, accion="actualizar", entidad="Usuario", entidad_id=record.id, descripcion=f"Rol cambiado {record.usuario}", detalles={"anterior": previous_role, "nuevo": new_role})
 
 
-def _delete_user(user_id: int, current_user_id: int) -> None:
+def _delete_user(user_id: int, current_user_id: int, actor: str) -> None:
     with get_session() as session:
         record = session.get(Usuario, user_id)
         if not record:
@@ -74,8 +78,10 @@ def _delete_user(user_id: int, current_user_id: int) -> None:
         if record.rol == "Administrador" and _admin_count() <= 1:
             raise ValueError("No puedes eliminar al último administrador")
 
+        username = record.usuario
         session.delete(record)
         session.flush()
+        record_event(usuario=actor, accion="eliminar", entidad="Usuario", entidad_id=user_id, descripcion=f"Usuario eliminado {username}")
 
 
 def main() -> None:
@@ -106,12 +112,13 @@ def main() -> None:
             st.error("Las contraseñas no coinciden.")
         else:
             try:
-                AuthService.create_user(
+                created_user = AuthService.create_user(
                     nombre=nombre.strip(),
                     usuario=usuario.strip(),
                     password=password,
                     rol=rol,
                 )
+                record_event(usuario=str(user["usuario"]), accion="crear", entidad="Usuario", entidad_id=created_user.id, descripcion=f"Usuario creado {usuario.strip()}", detalles={"rol": rol})
                 st.success(f"Usuario {rol} creado correctamente.")
                 st.rerun()
             except ValueError as exc:
@@ -143,7 +150,7 @@ def main() -> None:
                     st.error("Las contraseñas no coinciden.")
                 else:
                     try:
-                        _reset_password(selected_user_id, new_password)
+                        _reset_password(selected_user_id, new_password, actor=str(user["usuario"]))
                         st.success("Contraseña restablecida correctamente.")
                     except Exception as exc:
                         st.error(str(exc))
@@ -155,7 +162,7 @@ def main() -> None:
 
             if submit_role:
                 try:
-                    _update_role(selected_user_id, new_role, current_user_id=int(user["id"]))
+                    _update_role(selected_user_id, new_role, current_user_id=int(user["id"]), actor=str(user["usuario"]))
                     st.success("Rol actualizado correctamente.")
                     st.rerun()
                 except Exception as exc:
@@ -165,7 +172,7 @@ def main() -> None:
             confirm_delete = st.checkbox("Confirmo que deseo eliminar este usuario", key="confirm_delete_user")
             if st.button("Eliminar usuario", type="secondary", use_container_width=True, disabled=not confirm_delete):
                 try:
-                    _delete_user(selected_user_id, current_user_id=int(user["id"]))
+                    _delete_user(selected_user_id, current_user_id=int(user["id"]), actor=str(user["usuario"]))
                     st.success("Usuario eliminado correctamente.")
                     st.rerun()
                 except Exception as exc:

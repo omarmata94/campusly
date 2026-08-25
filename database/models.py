@@ -128,3 +128,15 @@ class ImportacionHorario(Base):
     anio: Mapped[int] = mapped_column(Integer, nullable=False)
     cuatrimestre: Mapped[int] = mapped_column(Integer, nullable=False)
     metodo_deteccion: Mapped[str] = mapped_column(String(20), nullable=False)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    fecha_evento: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    usuario: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    accion: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    entidad: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    entidad_id: Mapped[str] = mapped_column(String(80), nullable=False, default="")
+    descripcion: Mapped[str] = mapped_column(String(255), nullable=False)
