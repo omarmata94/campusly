@@ -99,6 +99,30 @@ def _render_charts(df: pd.DataFrame) -> None:
             fig_dept.update_layout(showlegend=False)
             chart_cols[2].plotly_chart(_chart_style(fig_dept), use_container_width=True)
 
+    if "turno" in df.columns or ("anio" in df.columns and "cuatrimestre" in df.columns):
+        st.markdown("### Análisis por periodo")
+        period_cols = st.columns(2)
+
+        if "turno" in df.columns:
+            turno_df = df.groupby("turno", as_index=False).size().rename(columns={"size": "registros"}).sort_values("registros", ascending=False)
+            if not turno_df.empty:
+                fig_turno = px.bar(turno_df, x="turno", y="registros", color="turno", title="Por turno")
+                fig_turno.update_layout(showlegend=False)
+                period_cols[0].plotly_chart(_chart_style(fig_turno), use_container_width=True)
+
+        if "anio" in df.columns and "cuatrimestre" in df.columns:
+            period_df = (
+                df.groupby(["anio", "cuatrimestre"], as_index=False)
+                .size()
+                .rename(columns={"size": "registros"})
+                .sort_values(["anio", "cuatrimestre"])
+            )
+            if not period_df.empty:
+                period_df["periodo"] = period_df["anio"].astype(str) + "-C" + period_df["cuatrimestre"].astype(str)
+                fig_period = px.line(period_df, x="periodo", y="registros", markers=True, title="Por cuatrimestre")
+                fig_period.update_traces(line=dict(color="#10B981", width=3), marker=dict(size=8, color="#10B981"))
+                period_cols[1].plotly_chart(_chart_style(fig_period), use_container_width=True)
+
 
 def main() -> None:
     configure_page(f"{APP_NAME} | Reportes")
