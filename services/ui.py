@@ -724,7 +724,7 @@ def render_sidebar(user: dict | None = None) -> None:
         try:
             import os
             current_dir = os.path.dirname(os.path.abspath(__file__))
-                        logo_path = os.path.join(os.path.dirname(current_dir), 'assets', 'logo_utc.png')
+            logo_path = os.path.join(os.path.dirname(current_dir), 'assets', 'logo_utc.png')
             if os.path.exists(logo_path):
                 with open(logo_path, 'rb') as f:
                     import base64
