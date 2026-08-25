@@ -8,6 +8,7 @@ import zipfile
 
 import pandas as pd
 import streamlit as st
+from PIL import Image, ImageDraw, ImageFont
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -165,6 +166,30 @@ def _safe_filename(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", value.strip())
 
 
+def _build_identified_qr_png(qr_path: Path, numero_empleado: str, nombre_completo: str, turno_nombre: str) -> bytes:
+    """Genera una imagen QR lista para impresión con identificación textual."""
+    qr_img = Image.open(qr_path).convert("RGB")
+    qr_size = 420
+    qr_img = qr_img.resize((qr_size, qr_size), Image.Resampling.NEAREST)
+
+    padding = 24
+    footer_height = 140
+    canvas = Image.new("RGB", (qr_size + padding * 2, qr_size + footer_height + padding * 2), "white")
+    canvas.paste(qr_img, (padding, padding))
+
+    draw = ImageDraw.Draw(canvas)
+    font = ImageFont.load_default()
+    text_y = padding + qr_size + 18
+
+    draw.text((padding, text_y), f"{numero_empleado}", fill="black", font=font)
+    draw.text((padding, text_y + 28), nombre_completo[:58], fill="black", font=font)
+    draw.text((padding, text_y + 56), f"Turno: {turno_nombre}", fill="black", font=font)
+
+    output = io.BytesIO()
+    canvas.save(output, format="PNG")
+    return output.getvalue()
+
+
 def _build_turno_qr_zip(turno_nombre: str) -> dict:
     """Genera un ZIP con los QRs de docentes activos asignados a un turno."""
     with get_session() as session:
@@ -198,9 +223,18 @@ def _build_turno_qr_zip(turno_nombre: str) -> dict:
                 continue
 
             full_name = f"{docente.nombre} {docente.apellidos}".strip()
-            file_name = _safe_filename(f"{docente.numero_empleado}_{full_name}_{turno_nombre}.png")
-            archive.write(qr_path, arcname=file_name)
-            included += 1
+            file_name = _safe_filename(f"QR_{docente.numero_empleado}_{full_name}_{turno_nombre}.png")
+            try:
+                printable_png = _build_identified_qr_png(
+                    qr_path=qr_path,
+                    numero_empleado=docente.numero_empleado,
+                    nombre_completo=full_name,
+                    turno_nombre=turno_nombre,
+                )
+                archive.writestr(file_name, printable_png)
+                included += 1
+            except Exception as exc:
+                errors.append(f"{docente.numero_empleado}: no se pudo etiquetar QR ({exc})")
 
     return {
         "zip_bytes": buffer.getvalue(),
