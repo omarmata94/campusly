@@ -28,23 +28,10 @@ def current_time_local() -> time:
     return now_local().time().replace(microsecond=0, tzinfo=None)
 
 
-def cuatrimestre_for_date(target_date: date) -> int:
-    """Retorna el cuatrimestre académico para una fecha.
-
-    1: Enero-Abril, 2: Mayo-Agosto, 3: Septiembre-Diciembre.
-    """
-    month = target_date.month
-    if 1 <= month <= 4:
+def cuatrimestre_for_date(value: date) -> int:
+    month = value.month
+    if month <= 4:
         return 1
-    if 5 <= month <= 8:
+    if month <= 8:
         return 2
     return 3
-
-
-def cuatrimestre_label(cuatrimestre: int) -> str:
-    labels = {
-        1: "Enero-Abril",
-        2: "Mayo-Agosto",
-        3: "Septiembre-Diciembre",
-    }
-    return labels.get(cuatrimestre, "Desconocido")
