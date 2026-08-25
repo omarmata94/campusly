@@ -98,6 +98,47 @@ def _ensure_docentes_columns() -> None:
             """
         )
 
+        columns = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(docentes)").fetchall()}
+        if "departamento" not in columns:
+            return
+
+        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        connection.exec_driver_sql("DROP TABLE IF EXISTS docentes_new")
+        connection.exec_driver_sql(
+            """
+            CREATE TABLE docentes_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                numero_empleado VARCHAR(32) NOT NULL UNIQUE,
+                nombre VARCHAR(120) NOT NULL,
+                apellido_paterno VARCHAR(120) NOT NULL DEFAULT '',
+                apellido_materno VARCHAR(120) NOT NULL DEFAULT '',
+                apellidos VARCHAR(160) NOT NULL,
+                puesto VARCHAR(120) NOT NULL,
+                horario_entrada VARCHAR(5) NOT NULL,
+                horario_salida VARCHAR(5) NOT NULL,
+                qr_uuid VARCHAR(36) NOT NULL UNIQUE,
+                activo BOOLEAN NOT NULL
+            )
+            """
+        )
+        connection.exec_driver_sql(
+            """
+            INSERT INTO docentes_new (
+                id, numero_empleado, nombre, apellido_paterno, apellido_materno, apellidos, puesto,
+                horario_entrada, horario_salida, qr_uuid, activo
+            )
+            SELECT
+                id, numero_empleado, nombre, apellido_paterno, apellido_materno, apellidos, puesto,
+                horario_entrada, horario_salida, qr_uuid, activo
+            FROM docentes
+            """
+        )
+        connection.exec_driver_sql("DROP TABLE docentes")
+        connection.exec_driver_sql("ALTER TABLE docentes_new RENAME TO docentes")
+        connection.exec_driver_sql("CREATE UNIQUE INDEX IF NOT EXISTS ix_docentes_numero_empleado ON docentes (numero_empleado)")
+        connection.exec_driver_sql("CREATE UNIQUE INDEX IF NOT EXISTS ix_docentes_qr_uuid ON docentes (qr_uuid)")
+        connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+
 
 def _ensure_docente_horas_period_columns() -> None:
     current_year, current_cuatrimestre = current_academic_period()

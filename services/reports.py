@@ -18,7 +18,6 @@ class AttendanceFilters:
     fecha_inicio: Optional[date] = None
     fecha_fin: Optional[date] = None
     docente_id: Optional[int] = None
-    departamento: Optional[str] = None
     estatus: Optional[str] = None
     turno: Optional[str] = None
     anio: Optional[int] = None
@@ -43,7 +42,6 @@ class ReportService:
                 Docente.numero_empleado.label("numero_empleado"),
                 Docente.nombre.label("nombre"),
                 Docente.apellidos.label("apellidos"),
-                Docente.departamento.label("departamento"),
                 Docente.puesto.label("puesto"),
                 Docente.horario_entrada.label("horario_entrada"),
                 Docente.horario_salida.label("horario_salida"),
@@ -62,8 +60,6 @@ class ReportService:
             conditions.append(Asistencia.fecha <= filters.fecha_fin)
         if filters.docente_id:
             conditions.append(Asistencia.docente_id == filters.docente_id)
-        if filters.departamento:
-            conditions.append(Docente.departamento == filters.departamento)
         if filters.estatus:
             conditions.append(Asistencia.estatus == filters.estatus)
         if filters.turno:
@@ -99,7 +95,6 @@ class ReportService:
                     Docente.numero_empleado.label("numero_empleado"),
                     Docente.nombre.label("nombre"),
                     Docente.apellidos.label("apellidos"),
-                    Docente.departamento.label("departamento"),
                 )
                 .join(Docente, Asistencia.docente_id == Docente.id)
                 .order_by(Asistencia.fecha.desc(), Asistencia.hora.desc())
@@ -161,16 +156,16 @@ class ReportService:
         return df
 
     @staticmethod
-    def department_summary(start: date, end: date) -> pd.DataFrame:
+    def turno_summary(start: date, end: date) -> pd.DataFrame:
         with get_session() as session:
             query = (
                 select(
-                    Docente.departamento.label("departamento"),
+                    Asistencia.turno.label("turno"),
                     func.count(Asistencia.id).label("total"),
                 )
                 .join(Docente, Asistencia.docente_id == Docente.id)
                 .where(Asistencia.fecha.between(start, end))
-                .group_by(Docente.departamento)
+                .group_by(Asistencia.turno)
                 .order_by(func.count(Asistencia.id).desc())
             )
             rows = session.execute(query).mappings().all()

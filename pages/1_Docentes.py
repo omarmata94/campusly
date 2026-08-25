@@ -23,7 +23,6 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 UPLOADS_DIR = ROOT_DIR / "data" / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
-DEPARTAMENTO_FIJO = "Academia"
 PUESTOS_OPCIONES = [
     "Profesor de Tiempo Completo",
     "Profesor por Asignatura",
@@ -65,7 +64,6 @@ def _docentes_dataframe() -> pd.DataFrame:
                     getattr(docente, "apellido_materno", ""),
                 )
                 or docente.apellidos,
-                "departamento": docente.departamento or DEPARTAMENTO_FIJO,
                 "puesto": docente.puesto,
                 "horario_entrada": docente.horario_entrada,
                 "horario_salida": docente.horario_salida,
@@ -94,7 +92,6 @@ def _load_docente(docente_id: int) -> dict | None:
             "apellido_paterno": apellido_paterno,
             "apellido_materno": apellido_materno,
             "apellidos": _join_apellidos(apellido_paterno, apellido_materno) or docente.apellidos,
-            "departamento": docente.departamento or DEPARTAMENTO_FIJO,
             "puesto": docente.puesto,
             "horario_entrada": docente.horario_entrada,
             "horario_salida": docente.horario_salida,
@@ -124,7 +121,6 @@ def _save_docente(data: dict, docente_id: int | None = None) -> None:
 
         payload = dict(data)
         payload["numero_empleado"] = numero_empleado
-        payload["departamento"] = DEPARTAMENTO_FIJO
         payload["puesto"] = puesto
         payload.pop("apellido_paterno", None)
         payload.pop("apellido_materno", None)
@@ -344,10 +340,9 @@ def main() -> None:
             nombre = c2.text_input("Nombre")
             apellido_paterno = c3.text_input("Apellido paterno")
             apellido_materno = c4.text_input("Apellido materno")
-            d1, d2, d3 = st.columns(3)
-            d1.text_input("Departamento", value=DEPARTAMENTO_FIJO, disabled=True)
-            puesto = d2.selectbox("Puesto", PUESTOS_OPCIONES, index=0)
-            horario_entrada_time = d3.time_input("Horario de entrada (24h)", value=time(7, 0), step=60)
+            d1, d2 = st.columns(2)
+            puesto = d1.selectbox("Puesto", PUESTOS_OPCIONES, index=0)
+            horario_entrada_time = d2.time_input("Horario de entrada (24h)", value=time(7, 0), step=60)
             s1, s2 = st.columns(2)
             horario_salida_time = s1.time_input("Horario de salida (24h)", value=time(14, 0), step=60)
             activo = s2.checkbox("Activo", value=True)
@@ -393,11 +388,10 @@ def main() -> None:
                     nombre = c2.text_input("Nombre", value=docente["nombre"])
                     apellido_paterno = c3.text_input("Apellido paterno", value=docente["apellido_paterno"])
                     apellido_materno = c4.text_input("Apellido materno", value=docente["apellido_materno"])
-                    d1, d2, d3 = st.columns(3)
-                    d1.text_input("Departamento", value=DEPARTAMENTO_FIJO, disabled=True)
+                    d1, d2 = st.columns(2)
                     puesto_index = PUESTOS_OPCIONES.index(docente["puesto"]) if docente["puesto"] in PUESTOS_OPCIONES else 0
-                    puesto = d2.selectbox("Puesto", PUESTOS_OPCIONES, index=puesto_index)
-                    horario_entrada_time = d3.time_input(
+                    puesto = d1.selectbox("Puesto", PUESTOS_OPCIONES, index=puesto_index)
+                    horario_entrada_time = d2.time_input(
                         "Horario de entrada (24h)",
                         value=_parse_time(docente["horario_entrada"], time(7, 0)),
                         step=60,
@@ -501,7 +495,6 @@ def main() -> None:
                         asset = BadgeGenerator.generate_badge_pdf(
                             full_name=f"{docente['nombre']} {docente['apellido_paterno']} {docente['apellido_materno']}",
                             employee_number=docente["numero_empleado"],
-                            department=docente["departamento"],
                             qr_uuid=docente["qr_uuid"],
                             photo_path=photo_path,
                             logo_path=logo_path,

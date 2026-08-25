@@ -44,7 +44,6 @@ class Docente(Base):
     apellido_paterno: Mapped[str] = mapped_column(String(120), nullable=False, default="")
     apellido_materno: Mapped[str] = mapped_column(String(120), nullable=False, default="")
     apellidos: Mapped[str] = mapped_column(String(160), nullable=False)
-    departamento: Mapped[str] = mapped_column(String(120), nullable=False)
     puesto: Mapped[str] = mapped_column(String(120), nullable=False)
     horario_entrada: Mapped[str] = mapped_column(String(5), nullable=False)
     horario_salida: Mapped[str] = mapped_column(String(5), nullable=False)

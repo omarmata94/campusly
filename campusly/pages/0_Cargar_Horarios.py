@@ -653,7 +653,6 @@ def _import_to_db(
                     apellido_paterno=apellido_paterno,
                     apellido_materno=apellido_materno,
                     apellidos=apellidos,
-                    departamento="Sin especificar",
                     puesto="Docente",
                     horario_entrada=horario_entrada,
                     horario_salida=horario_salida,

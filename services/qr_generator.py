@@ -77,7 +77,6 @@ class BadgeGenerator:
     def _compose_badge(
         full_name: str,
         employee_number: str,
-        department: str,
         qr_path: Path,
         photo_path: Optional[Path] = None,
         logo_path: Optional[Path] = None,
@@ -126,7 +125,7 @@ class BadgeGenerator:
         draw.text((414, 202), "Docente", fill=(46, 58, 78), font=label_font)
         draw.text((414, 232), full_name.upper(), fill=(16, 37, 66), font=value_font)
         draw.text((414, 300), f"No. Empleado: {employee_number}", fill=(46, 58, 78), font=small_font)
-        draw.text((414, 350), f"Departamento: {department}", fill=(46, 58, 78), font=small_font)
+        draw.text((414, 350), "Academia", fill=(46, 58, 78), font=small_font)
         draw.text((414, 430), "Presenta este gafete al prefecto para registrar asistencia.", fill=(78, 92, 110), font=subtitle_font)
 
         draw.rounded_rectangle((414, 502, 708, 574), radius=18, fill=(231, 239, 249))
@@ -138,7 +137,6 @@ class BadgeGenerator:
     def generate_badge_pdf(
         full_name: str,
         employee_number: str,
-        department: str,
         qr_uuid: str,
         photo_path: Optional[Path] = None,
         logo_path: Optional[Path] = None,
@@ -150,7 +148,6 @@ class BadgeGenerator:
         badge = BadgeGenerator._compose_badge(
             full_name=full_name,
             employee_number=employee_number,
-            department=department,
             qr_path=qr_path,
             photo_path=photo_path,
             logo_path=logo_path,
