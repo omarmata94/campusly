@@ -14,6 +14,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+HONORIFICOS_DOCENTE = {
+    "ING", "ING.", "LIC", "LIC.", "DR", "DR.", "DRA", "DRA.", "MDO", "MDO.", "MC", "MC.",
+}
+
+
 @dataclass
 class HorarioEntry:
     """Representa una entrada de horario extraída del PDF"""
@@ -229,7 +234,10 @@ class PDFHorarioExtractor:
             # Algunos PDFs tienen código al inicio
             code_match = re.search(r"^([A-Z0-9]+)", self.docente_nombre)
             if code_match:
-                self.numero_empleado = code_match.group(1)
+                candidate = code_match.group(1).upper()
+                # Evitar tomar títulos académicos como número de empleado.
+                if candidate not in HONORIFICOS_DOCENTE and re.search(r"\d", candidate):
+                    self.numero_empleado = candidate
 
         # Buscar "Turno: Matutino/Nocturno"
         turno_match = re.search(

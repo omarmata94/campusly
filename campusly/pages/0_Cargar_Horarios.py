@@ -24,6 +24,11 @@ from services.time_utils import cuatrimestre_for_date, today_local
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar
 
 
+HONORIFICOS_DOCENTE = {
+    "ING", "ING.", "LIC", "LIC.", "DR", "DR.", "DRA", "DRA.", "MDO", "MDO.", "MC", "MC.",
+}
+
+
 def main() -> None:
     init_db()
     configure_page(f"{APP_NAME} | Cargar Horarios")
@@ -602,7 +607,7 @@ def _import_to_db(
 
             # 1. Buscar o crear docente
             numero_empleado = (result.numero_empleado or "").strip()
-            nombre_completo = (result.docente_nombre or "").strip()
+            nombre_completo = _sanitize_docente_nombre((result.docente_nombre or "").strip())
             partes = [p for p in nombre_completo.split() if p]
             nombre = partes[0] if partes else "Docente"
             apellidos_tokens = partes[1:]
@@ -780,6 +785,13 @@ def _fallback_numero_empleado(docente_nombre: str, turno: str) -> str:
     scope = _normalize_docente_token(turno)[:6] or "GEN"
     digest = uuid.uuid5(uuid.NAMESPACE_DNS, f"{base}|{scope}").hex[:8].upper()
     return f"AUTO{base}{digest}"[:32]
+
+
+def _sanitize_docente_nombre(nombre_completo: str) -> str:
+    tokens = [tok for tok in (nombre_completo or "").strip().split() if tok]
+    if tokens and tokens[0].upper() in HONORIFICOS_DOCENTE:
+        tokens = tokens[1:]
+    return " ".join(tokens).strip()
 
 
 if __name__ == "__main__":
