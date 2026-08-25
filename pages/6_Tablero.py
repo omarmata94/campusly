@@ -6,7 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from services.audit import action_summary, recent_events, total_events
+from services.audit import action_summary, distinct_users, recent_events, total_events
 from services.reports import ReportService
 from services.time_utils import today_local
 from services.ui import APP_NAME, configure_page, logout_button, metric_card, page_hero, render_sidebar, require_login, styled_attendance_table
@@ -38,9 +38,7 @@ def main() -> None:
     turno_df = ReportService.turno_summary(start_date, end_date)
     monthly_df = ReportService.monthly_trend(end_date.year)
     latest_df = ReportService.latest_records(limit=8)
-    audit_total = total_events(days=7)
-    audit_df = recent_events(limit=8)
-    audit_actions_df = action_summary(days=7)
+    audit_users = distinct_users()
 
     c1, c2 = st.columns(2)
     with c1:
@@ -116,10 +114,21 @@ def main() -> None:
 
     if user["rol"] == "Administrador":
         st.markdown("### Auditoría reciente")
+        selected_audit_user = st.selectbox("Usuario", ["Todos"] + audit_users, key="audit_user_filter")
+        audit_user_value = None if selected_audit_user == "Todos" else selected_audit_user
+        audit_total = total_events(days=7, usuario=audit_user_value)
+        audit_df = recent_events(limit=8, usuario=audit_user_value)
+        audit_actions_df = action_summary(days=7, usuario=audit_user_value)
+
         a1, a2, a3 = st.columns(3)
         a1.metric("Eventos 7 días", audit_total)
         a2.metric("Acciones distintas", len(audit_actions_df))
         a3.metric("Últimos eventos", len(audit_df))
+
+        if audit_user_value:
+            st.caption(f"Mostrando acciones de {audit_user_value}")
+        else:
+            st.caption("Mostrando acciones de todos los usuarios")
 
         if audit_actions_df.empty:
             st.info("Todavía no hay eventos de auditoría.")
