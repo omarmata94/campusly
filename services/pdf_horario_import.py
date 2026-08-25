@@ -91,6 +91,15 @@ class PDFHorarioExtractor:
         "20:20 - 21:00": 4,
     }
 
+    COMISION_KEYWORDS = (
+        "estadia",
+        "tutoria",
+        "horas administrativas",
+        "tiempo administrativo",
+        "enlace modelo dual",
+        "comision",
+    )
+
     def __init__(self):
         self.docente_nombre = ""
         self.numero_empleado = ""
@@ -338,7 +347,7 @@ class PDFHorarioExtractor:
 
                 cell_content = str(row[col_idx]).strip()
                 
-                if not cell_content or cell_content == "Descanso" or "Hora de Comida" in cell_content:
+                if not cell_content or "descanso" in cell_content.lower() or "Hora de Comida" in cell_content:
                     continue
 
                 # Parsear contenido de la celda
@@ -406,6 +415,12 @@ class PDFHorarioExtractor:
         lines = [line.strip() for line in content.split("\n") if line.strip()]
         
         if len(lines) < 2:
+            if len(lines) == 1 and self._is_comision_activity(lines[0]):
+                return {
+                    "grupo_codigo": "COMISION",
+                    "materia": lines[0],
+                    "salon": "COMISION",
+                }
             return None
 
         return {
@@ -413,6 +428,17 @@ class PDFHorarioExtractor:
             "materia": lines[1] if len(lines) > 1 else "",
             "salon": lines[2] if len(lines) > 2 else "",
         }
+
+    def _is_comision_activity(self, text: str) -> bool:
+        normalized = (
+            text.lower()
+            .replace("á", "a")
+            .replace("é", "e")
+            .replace("í", "i")
+            .replace("ó", "o")
+            .replace("ú", "u")
+        )
+        return any(keyword in normalized for keyword in self.COMISION_KEYWORDS)
 
 
 class PDFHorarioImportService:
