@@ -173,7 +173,7 @@ def _build_identified_qr_png(qr_path: Path, numero_empleado: str, nombre_complet
     qr_img = qr_img.resize((qr_size, qr_size), Image.Resampling.NEAREST)
 
     padding = 24
-    footer_height = 140
+    footer_height = 90
     canvas = Image.new("RGB", (qr_size + padding * 2, qr_size + footer_height + padding * 2), "white")
     canvas.paste(qr_img, (padding, padding))
 
@@ -181,9 +181,7 @@ def _build_identified_qr_png(qr_path: Path, numero_empleado: str, nombre_complet
     font = ImageFont.load_default()
     text_y = padding + qr_size + 18
 
-    draw.text((padding, text_y), f"{numero_empleado}", fill="black", font=font)
-    draw.text((padding, text_y + 28), nombre_completo[:58], fill="black", font=font)
-    draw.text((padding, text_y + 56), f"Turno: {turno_nombre}", fill="black", font=font)
+    draw.text((padding, text_y), nombre_completo[:64], fill="black", font=font)
 
     output = io.BytesIO()
     canvas.save(output, format="PNG")
