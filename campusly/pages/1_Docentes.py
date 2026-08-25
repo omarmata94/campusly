@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import io
 from datetime import datetime, time
 from pathlib import Path
+import re
+import zipfile
 
 import pandas as pd
 import streamlit as st
@@ -9,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from database.db import get_session, init_db
-from database.models import Docente
+from database.models import Docente, DocenteHoraClase, Turno
 from services.qr_generator import BadgeGenerator, QRGenerator
 from services.ui import APP_NAME, configure_page, logout_button, page_hero, require_login, render_sidebar, styled_attendance_table
 
@@ -156,6 +159,55 @@ def _delete_docente(docente_id: int) -> None:
         session.flush()
 
 
+def _safe_filename(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", value.strip())
+
+
+def _build_turno_qr_zip(turno_nombre: str) -> dict:
+    """Genera un ZIP con los QRs de docentes activos asignados a un turno."""
+    with get_session() as session:
+        docentes = session.execute(
+            select(Docente)
+            .join(DocenteHoraClase, DocenteHoraClase.docente_id == Docente.id)
+            .join(Turno, Turno.id == DocenteHoraClase.turno_id)
+            .where(Turno.nombre == turno_nombre, Docente.activo.is_(True))
+            .distinct()
+            .order_by(Docente.nombre, Docente.apellidos)
+        ).scalars().all()
+
+    if not docentes:
+        return {"zip_bytes": b"", "included": 0, "detected": 0, "errors": ["No hay docentes activos en este turno."]}
+
+    buffer = io.BytesIO()
+    errors: list[str] = []
+    included = 0
+
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for docente in docentes:
+            qr_path = ROOT_DIR / "assets" / "qrs" / f"{docente.qr_uuid}.png"
+            if not qr_path.exists():
+                try:
+                    QRGenerator.save_qr(docente.qr_uuid, docente.qr_uuid)
+                except Exception as exc:
+                    errors.append(f"{docente.numero_empleado}: no se pudo generar QR ({exc})")
+
+            if not qr_path.exists():
+                errors.append(f"{docente.numero_empleado}: QR no encontrado")
+                continue
+
+            full_name = f"{docente.nombre} {docente.apellidos}".strip()
+            file_name = _safe_filename(f"{docente.numero_empleado}_{full_name}_{turno_nombre}.png")
+            archive.write(qr_path, arcname=file_name)
+            included += 1
+
+    return {
+        "zip_bytes": buffer.getvalue(),
+        "included": included,
+        "detected": len(docentes),
+        "errors": errors,
+    }
+
+
 def main() -> None:
     init_db()
     configure_page(f"{APP_NAME} | Docentes")
@@ -166,7 +218,7 @@ def main() -> None:
 
     page_hero("Docentes", "CRUD completo, búsqueda y generación de gafetes institucionales.")
 
-    tabs = st.tabs(["Registrar", "Editar", "Eliminar", "Buscar", "Listado", "Gafete PDF"])
+    tabs = st.tabs(["Registrar", "Editar", "Eliminar", "Buscar", "Listado", "Gafete PDF", "QRs por Turno"])
 
     with tabs[0]:
         st.subheader("Agregar docente")
@@ -348,6 +400,42 @@ def main() -> None:
                         )
                     except Exception as exc:
                         st.error(str(exc))
+
+    with tabs[6]:
+        st.subheader("Descarga masiva de QR por turno")
+        st.caption("Genera archivos ZIP con todos los QR de docentes activos para cada turno.")
+
+        for turno_nombre in ["Matutino", "Nocturno"]:
+            block = st.container(border=True)
+            with block:
+                st.markdown(f"### {turno_nombre}")
+                state_key = f"qr_zip_{turno_nombre.lower()}"
+                if st.button(f"Preparar ZIP {turno_nombre}", key=f"prepare_zip_{turno_nombre.lower()}", use_container_width=True):
+                    with st.spinner(f"Generando ZIP de QRs para {turno_nombre}..."):
+                        st.session_state[state_key] = _build_turno_qr_zip(turno_nombre)
+
+                payload = st.session_state.get(state_key)
+                if payload:
+                    if payload["included"] == 0:
+                        st.warning("No se encontraron QRs para descargar en este turno.")
+                    else:
+                        st.success(
+                            f"QRs incluidos: {payload['included']} de {payload['detected']} docentes detectados en {turno_nombre}."
+                        )
+                        zip_name = f"qrs_{turno_nombre.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+                        st.download_button(
+                            f"Descargar ZIP {turno_nombre}",
+                            data=payload["zip_bytes"],
+                            file_name=zip_name,
+                            mime="application/zip",
+                            use_container_width=True,
+                            key=f"download_zip_{turno_nombre.lower()}",
+                        )
+
+                    if payload.get("errors"):
+                        with st.expander(f"Detalles ({len(payload['errors'])} incidencias)"):
+                            for err in payload["errors"][:100]:
+                                st.error(err)
 
 
 if __name__ == "__main__":
