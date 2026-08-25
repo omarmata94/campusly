@@ -517,12 +517,19 @@ def _render_admin_reset_section(user: dict) -> None:
             "Confirmo que quiero limpiar los datos operativos",
             key="confirm_reset_operational_data",
         )
+        confirm_phrase = st.text_input(
+            "Escribe BORRAR para habilitar la acción",
+            key="confirm_reset_operational_data_phrase",
+            placeholder="BORRAR",
+            help="La acción solo se habilita cuando escribes exactamente BORRAR.",
+        )
+        reset_enabled = confirm_reset and confirm_phrase.strip().upper() == "BORRAR"
 
         if st.button(
             "🧨 Limpiar datos operativos ahora",
             type="secondary",
             use_container_width=True,
-            disabled=not confirm_reset,
+            disabled=not reset_enabled,
         ):
             result = _reset_operational_data()
             if result["success"]:
