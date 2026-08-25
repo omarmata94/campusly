@@ -27,33 +27,28 @@ def _filter_frame(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
     docente_options = ["Todos"] + sorted(df["docente"].dropna().astype(str).unique().tolist()) if "docente" in df.columns else ["Todos"]
-    departamento_options = ["Todos"] + sorted(df["departamento"].dropna().astype(str).unique().tolist()) if "departamento" in df.columns else ["Todos"]
     estatus_options = ["Todos"] + sorted(df["estatus"].dropna().astype(str).unique().tolist()) if "estatus" in df.columns else ["Todos"]
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     docente = col1.selectbox("Docente", docente_options, key="report_docente_filter")
-    departamento = col2.selectbox("Departamento", departamento_options, key="report_departamento_filter")
-    estatus = col3.selectbox("Estatus", estatus_options, key="report_estatus_filter")
+    estatus = col2.selectbox("Estatus", estatus_options, key="report_estatus_filter")
 
     filtered = df.copy()
     if docente != "Todos" and "docente" in filtered.columns:
         filtered = filtered[filtered["docente"].astype(str) == docente]
-    if departamento != "Todos" and "departamento" in filtered.columns:
-        filtered = filtered[filtered["departamento"].astype(str) == departamento]
     if estatus != "Todos" and "estatus" in filtered.columns:
         filtered = filtered[filtered["estatus"].astype(str) == estatus]
     return filtered
 
 
-def _load_custom_options() -> tuple[list[tuple[str, int]], list[str], list[str], list[int]]:
+def _load_custom_options() -> tuple[list[tuple[str, int]], list[str], list[int]]:
     with get_session() as session:
         docentes = session.query(Docente).order_by(Docente.apellido_paterno, Docente.apellido_materno, Docente.nombre).all()
         turnos = [row[0] for row in session.query(Asistencia.turno).distinct().order_by(Asistencia.turno).all()]
-        departamentos = [row[0] for row in session.query(Docente.departamento).distinct().order_by(Docente.departamento).all()]
         years = [row[0] for row in session.query(Asistencia.anio).distinct().order_by(Asistencia.anio).all()]
 
     docente_options = [(f"{docente.numero_empleado} - {docente.nombre} {docente.apellidos}".strip(), docente.id) for docente in docentes]
-    return docente_options, [turno for turno in turnos if turno], [departamento for departamento in departamentos if departamento], [int(year) for year in years if year is not None]
+    return docente_options, [turno for turno in turnos if turno], [int(year) for year in years if year is not None]
 
 
 def _chart_style(fig):
@@ -92,36 +87,26 @@ def _render_charts(df: pd.DataFrame) -> None:
             fig_status.update_layout(showlegend=False)
             chart_cols[1].plotly_chart(_chart_style(fig_status), use_container_width=True)
 
-    if "departamento" in df.columns:
-        dept_df = df.groupby("departamento", as_index=False).size().rename(columns={"size": "registros"}).sort_values("registros", ascending=False)
-        if not dept_df.empty:
-            fig_dept = px.bar(dept_df, x="departamento", y="registros", color="registros", title="Por departamento", color_continuous_scale=["#DBEAFE", "#2563EB"])
-            fig_dept.update_layout(showlegend=False)
-            chart_cols[2].plotly_chart(_chart_style(fig_dept), use_container_width=True)
+    if "turno" in df.columns:
+        turno_df = df.groupby("turno", as_index=False).size().rename(columns={"size": "registros"}).sort_values("registros", ascending=False)
+        if not turno_df.empty:
+            fig_turno = px.bar(turno_df, x="turno", y="registros", color="turno", title="Por turno")
+            fig_turno.update_layout(showlegend=False)
+            chart_cols[2].plotly_chart(_chart_style(fig_turno), use_container_width=True)
 
-    if "turno" in df.columns or ("anio" in df.columns and "cuatrimestre" in df.columns):
+    if "anio" in df.columns and "cuatrimestre" in df.columns:
         st.markdown("### Análisis por periodo")
-        period_cols = st.columns(2)
-
-        if "turno" in df.columns:
-            turno_df = df.groupby("turno", as_index=False).size().rename(columns={"size": "registros"}).sort_values("registros", ascending=False)
-            if not turno_df.empty:
-                fig_turno = px.bar(turno_df, x="turno", y="registros", color="turno", title="Por turno")
-                fig_turno.update_layout(showlegend=False)
-                period_cols[0].plotly_chart(_chart_style(fig_turno), use_container_width=True)
-
-        if "anio" in df.columns and "cuatrimestre" in df.columns:
-            period_df = (
-                df.groupby(["anio", "cuatrimestre"], as_index=False)
-                .size()
-                .rename(columns={"size": "registros"})
-                .sort_values(["anio", "cuatrimestre"])
-            )
-            if not period_df.empty:
-                period_df["periodo"] = period_df["anio"].astype(str) + "-C" + period_df["cuatrimestre"].astype(str)
-                fig_period = px.line(period_df, x="periodo", y="registros", markers=True, title="Por cuatrimestre")
-                fig_period.update_traces(line=dict(color="#10B981", width=3), marker=dict(size=8, color="#10B981"))
-                period_cols[1].plotly_chart(_chart_style(fig_period), use_container_width=True)
+        period_df = (
+            df.groupby(["anio", "cuatrimestre"], as_index=False)
+            .size()
+            .rename(columns={"size": "registros"})
+            .sort_values(["anio", "cuatrimestre"])
+        )
+        if not period_df.empty:
+            period_df["periodo"] = period_df["anio"].astype(str) + "-C" + period_df["cuatrimestre"].astype(str)
+            fig_period = px.line(period_df, x="periodo", y="registros", markers=True, title="Por cuatrimestre")
+            fig_period.update_traces(line=dict(color="#10B981", width=3), marker=dict(size=8, color="#10B981"))
+            st.plotly_chart(_chart_style(fig_period), use_container_width=True)
 
 
 def main() -> None:
@@ -146,7 +131,7 @@ def main() -> None:
 
         st.markdown(f"**Periodo:** {fecha_inicio.isoformat()} a {fecha_fin.isoformat()}")
     else:
-        docente_options, turno_options, departamento_options, year_options = _load_custom_options()
+        docente_options, turno_options, year_options = _load_custom_options()
         year_options = year_options or [today_local().year]
         with st.form("custom_report_form"):
             st.markdown("### Consulta personalizada")
@@ -159,12 +144,10 @@ def main() -> None:
             turno = c4.selectbox("Turno", ["Todos"] + turno_options, index=0)
 
             c5, c6 = st.columns(2)
-            departamento = c5.selectbox("Departamento", ["Todos"] + departamento_options, index=0)
-            estatus = c6.selectbox("Estatus", ["Todos", "Puntual", "Retardo", "Falta"], index=0)
+            estatus = c5.selectbox("Estatus", ["Todos", "Puntual", "Retardo", "Falta"], index=0)
+            anio = c6.selectbox("Año académico", ["Todos"] + year_options, index=0)
 
-            c7, c8 = st.columns(2)
-            anio = c7.selectbox("Año académico", ["Todos"] + year_options, index=0)
-            cuatrimestre = c8.selectbox("Cuatrimestre", ["Todos", 1, 2, 3], index=0)
+            cuatrimestre = st.selectbox("Cuatrimestre", ["Todos", 1, 2, 3], index=0)
 
             submit = st.form_submit_button("Buscar", use_container_width=True, type="primary")
 
@@ -183,7 +166,6 @@ def main() -> None:
             fecha_inicio=fecha_inicio,
             fecha_fin=fecha_fin,
             docente_id=docente_id,
-            departamento=None if departamento == "Todos" else departamento,
             estatus=None if estatus == "Todos" else estatus,
             turno=None if turno == "Todos" else turno,
             anio=None if anio == "Todos" else int(anio),
