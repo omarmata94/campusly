@@ -167,19 +167,68 @@ def _safe_filename(value: str) -> str:
 def _build_identified_qr_png(qr_path: Path, numero_empleado: str, nombre_completo: str, turno_nombre: str) -> bytes:
     """Genera una imagen QR lista para impresión con identificación textual."""
     qr_img = Image.open(qr_path).convert("RGB")
-    qr_size = 420
+    qr_size = 400
     qr_img = qr_img.resize((qr_size, qr_size), Image.Resampling.NEAREST)
 
-    padding = 24
-    footer_height = 90
-    canvas = Image.new("RGB", (qr_size + padding * 2, qr_size + footer_height + padding * 2), "white")
-    canvas.paste(qr_img, (padding, padding))
+    card_w = 620
+    card_h = 720
+    canvas = Image.new("RGB", (card_w, card_h), "#f5f8ff")
 
     draw = ImageDraw.Draw(canvas)
     font = ImageFont.load_default()
-    text_y = padding + qr_size + 18
+    title = "ASISTENCIA DOCENTE"
+    subtitle = "Codigo QR"
 
-    draw.text((padding, text_y), nombre_completo[:64], fill="black", font=font)
+    # Tarjeta principal.
+    draw.rounded_rectangle((20, 20, card_w - 20, card_h - 20), radius=24, fill="white", outline="#1e3a8a", width=3)
+
+    # Encabezado.
+    draw.rectangle((40, 42, card_w - 40, 112), fill="#1e3a8a")
+    title_w = draw.textlength(title, font=font)
+    subtitle_w = draw.textlength(subtitle, font=font)
+    draw.text(((card_w - title_w) / 2, 58), title, fill="white", font=font)
+    draw.text(((card_w - subtitle_w) / 2, 82), subtitle, fill="#dbeafe", font=font)
+
+    # Marco de QR.
+    qr_frame_x1 = (card_w - qr_size) // 2 - 14
+    qr_frame_y1 = 154
+    qr_frame_x2 = qr_frame_x1 + qr_size + 28
+    qr_frame_y2 = qr_frame_y1 + qr_size + 28
+    draw.rounded_rectangle((qr_frame_x1, qr_frame_y1, qr_frame_x2, qr_frame_y2), radius=18, outline="#c7d2fe", width=3)
+    canvas.paste(qr_img, (qr_frame_x1 + 14, qr_frame_y1 + 14))
+
+    # Nombre centrado con corte en 2 lineas.
+    label = " ".join((nombre_completo or "").split())
+    words = label.split()
+    lines = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if draw.textlength(candidate, font=font) <= card_w - 100:
+            current = candidate
+        else:
+            if current:
+                lines.append(current)
+            current = word
+        if len(lines) == 1 and current and draw.textlength(current, font=font) > card_w - 100:
+            lines.append(current)
+            current = ""
+            break
+    if current:
+        lines.append(current)
+    lines = lines[:2] or ["Docente"]
+
+    text_y = qr_frame_y2 + 34
+    for line in lines:
+        line_w = draw.textlength(line, font=font)
+        draw.text(((card_w - line_w) / 2, text_y), line, fill="#0f172a", font=font)
+        text_y += 24
+
+    # Pie de corte.
+    draw.line((56, card_h - 74, card_w - 56, card_h - 74), fill="#e2e8f0", width=1)
+    foot = "Imprimir y colocar en gafete"
+    foot_w = draw.textlength(foot, font=font)
+    draw.text(((card_w - foot_w) / 2, card_h - 58), foot, fill="#475569", font=font)
 
     output = io.BytesIO()
     canvas.save(output, format="PNG")
